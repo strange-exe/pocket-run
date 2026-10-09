@@ -74,6 +74,18 @@ Before `dev` and `build`, two scripts prepare the runtimes in `public/` (git-ign
 `scripts/fetch-clang.mjs` downloads the C/C++ toolchain at a pinned commit, verifies its SHA-256 hashes, and writes the
 gzipped pack to `public/clang/<commit>/`.
 
+### Testing on Android (emulator or USB device)
+
+```bash
+adb reverse tcp:4318 tcp:4318
+npx vite preview --host 127.0.0.1 --port 4318
+node e2e/android-check.mjs online
+```
+
+`adb reverse` makes the device's `localhost:4318` reach your computer, and `localhost` is a secure context, which
+service workers need. Stop the preview server and run `node e2e/android-check.mjs offline` to check the app loads
+from the device's cache. The script talks to Chrome through its DevTools socket, so Chrome needs no flags.
+
 ## Deploying
 
 The site is static. On Cloudflare Pages, use build command `npm run build` and output directory `dist`.
