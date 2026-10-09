@@ -1,0 +1,13 @@
+# Toolchain experiments and downloads
+spike/
+node_modules/
+dist/
+# Local planning notes and tool state
+.claude/
+# Generated
+public/pyodide/
+public/clang/
+dev-dist/
+test-results/
+playwright-report/
+e2e/shots/

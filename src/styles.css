@@ -1,0 +1,415 @@
+/* Pocket Run — "lab notebook / printout". Tokens first; see .claude design notes. */
+
+@font-face {
+  font-family: "Bricolage Grotesque";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 200 800;
+  src: url("@fontsource-variable/bricolage-grotesque/files/bricolage-grotesque-latin-wght-normal.woff2") format("woff2-variations");
+}
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 800;
+  src: url("@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2") format("woff2-variations");
+}
+
+:root {
+  color-scheme: light dark;
+  --font-ui: "Bricolage Grotesque", ui-sans-serif, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+
+  --paper: #f4f1ea;
+  --sheet: #fbfaf6;
+  --ink: #1d1b16;
+  --muted: #625d52;
+  --rule: #d9d3c5;
+  --edge: #8c8577;
+  --accent: #c2410c;
+  --on-accent: #ffffff;
+  --ok: #2f6f4e;
+  --err: #b42318;
+  --active-line: rgb(29 27 22 / 0.04);
+  --selection: rgb(194 65 12 / 0.18);
+  --syn-keyword: #9a3412;
+  --syn-string: #2f6f4e;
+  --syn-number: #1d5c8c;
+  --syn-comment: #6b665c;
+  --syn-def: #0f5f6b;
+
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px;
+  --code-size: 16px; /* 16px stops iOS zooming into the editor on focus */
+  --radius: 6px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #14130f;
+    --sheet: #1c1a16;
+    --ink: #ece7dc;
+    --muted: #a8a296;
+    --rule: #37342c;
+    --edge: #7a7568;
+    --accent: #f0804f;
+    --on-accent: #14130f;
+    --ok: #7cc49a;
+    --err: #f2907f;
+    --active-line: rgb(236 231 220 / 0.05);
+    --selection: rgb(240 128 79 / 0.25);
+    --syn-keyword: #f59e6b;
+    --syn-string: #8bcf9f;
+    --syn-number: #8fc1ea;
+    --syn-comment: #9c968a;
+    --syn-def: #6fd0d8;
+  }
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body { margin: 0; }
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font: 400 0.9375rem/1.5 var(--font-ui);
+  -webkit-text-size-adjust: 100%;
+}
+
+button, input, textarea { font: inherit; color: inherit; }
+
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.visually-hidden {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+/* ---------- masthead ---------- */
+.app {
+  max-width: 1280px;
+  margin: 0 auto;
+  /* --dock-h is the Run bar's measured height (set in main.ts), so nothing can end up under it. */
+  padding: var(--s4) var(--s4) calc(var(--dock-h, 96px) + var(--s4));
+}
+
+.masthead {
+  display: grid;
+  grid-template-columns: 1fr;
+  align-items: center;
+  gap: var(--s1) var(--s3);
+  padding-bottom: var(--s3);
+  border-bottom: 1px solid var(--rule);
+}
+
+.wordmark {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  margin: 0;
+  font-size: 1.375rem;
+  font-weight: 760;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+.mark { width: 26px; height: 26px; flex: none; }
+
+.tagline {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+.status-dot {
+  flex: none;
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--edge);
+}
+.status-dot[data-state="ready"] { background: var(--ok); }
+.status-dot[data-state="failed"] { background: var(--err); }
+
+/* ---------- file bar ---------- */
+.bench { display: flex; flex-direction: column; gap: var(--s3); padding-top: var(--s3); }
+
+.filebar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2);
+}
+
+.filename { flex: 1 1 10rem; min-width: 0; }
+.filename input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 var(--s3);
+  border: 1px solid var(--edge);
+  border-radius: var(--radius);
+  background: var(--sheet);
+  font-family: var(--font-code);
+  font-size: var(--code-size);
+}
+
+.lang-tag {
+  padding: 2px var(--s2);
+  border: 1px solid var(--ink);
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.lang-tag[data-unsupported] { border-color: var(--err); color: var(--err); }
+
+.file-actions { display: flex; flex: 1 1 100%; gap: var(--s2); }
+.file-actions .tool { flex: 1; }
+
+.tool {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 var(--s3);
+  border: 1px solid var(--edge);
+  border-radius: var(--radius);
+  background: transparent;
+  font-weight: 600;
+  cursor: pointer;
+}
+.tool:hover { background: var(--sheet); border-color: var(--ink); }
+
+/* ---------- editor ---------- */
+.editor-pane {
+  height: max(220px, 40dvh);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--sheet);
+  font-size: var(--code-size);
+}
+/* CodeMirror hides its own outline; show focus on the pane instead. */
+.editor-pane:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---------- input + printout ---------- */
+.io { display: flex; flex-direction: column; gap: var(--s3); min-width: 0; }
+
+.stdin {
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--sheet);
+}
+.stdin summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  padding: 0 var(--s3);
+  font-weight: 650;
+  cursor: pointer;
+}
+.stdin summary .hint { font-weight: 400; color: var(--muted); font-size: 0.8125rem; }
+.stdin textarea {
+  display: block;
+  width: 100%;
+  min-height: 6.5rem;
+  padding: var(--s3);
+  border: 0;
+  border-top: 1px solid var(--rule);
+  background: transparent;
+  font-family: var(--font-code);
+  font-size: var(--code-size);
+  resize: vertical;
+}
+.stdin textarea:focus-visible { outline-offset: -2px; }
+
+/* The printout: a slip with a perforated top edge and a stamped run receipt. */
+.printout {
+  position: relative;
+  /* After a run the page scrolls here; keep the result clear of the fixed Run bar. */
+  scroll-margin: var(--s3) 0 calc(var(--dock-h, 96px) + var(--s3));
+  padding: calc(var(--s3) + 8px) var(--s4) var(--s4);
+  background: var(--sheet);
+  border-radius: 0 0 var(--radius) var(--radius);
+  box-shadow: 0 1px 0 var(--rule), 0 10px 24px -18px rgb(0 0 0 / 0.35);
+}
+.printout::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 8px;
+  background: radial-gradient(circle at 8px 0, var(--paper) 4.5px, transparent 5px) 0 0 / 16px 8px repeat-x;
+}
+
+/* One-time C/C++ download offer, shown on the printout where the result would appear. */
+.pack-offer {
+  display: grid;
+  gap: var(--s3);
+  margin-bottom: var(--s3);
+  padding-bottom: var(--s3);
+  border-bottom: 1px dashed var(--rule);
+}
+.pack-offer[hidden] { display: none; }
+/* While the download is the only thing to do, the empty output lines are just noise. */
+.pack-offer:not([hidden]) { margin-bottom: 0; padding-bottom: 0; border-bottom: 0; }
+.pack-offer:not([hidden]) ~ .receipt,
+.pack-offer:not([hidden]) ~ .output { display: none; }
+.pack-text { margin: 0; }
+.pack-button { justify-self: start; border-color: var(--ink); }
+.pack-offer progress {
+  width: 100%;
+  height: 8px;
+  appearance: none;
+  border: 0;
+  border-radius: 4px;
+  background: var(--rule);
+  overflow: hidden;
+}
+.pack-offer progress::-webkit-progress-bar { background: var(--rule); }
+.pack-offer progress::-webkit-progress-value { background: var(--accent); }
+.pack-offer progress::-moz-progress-bar { background: var(--accent); }
+
+.receipt {
+  margin: 0 0 var(--s2);
+  padding-bottom: var(--s2);
+  border-bottom: 1px dashed var(--rule);
+  font-family: var(--font-code);
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+.receipt strong { font-weight: 700; }
+.receipt[data-status="ok"] strong { color: var(--ok); }
+.receipt[data-status="error"] strong,
+.receipt[data-status="compile-error"] strong,
+.receipt[data-status="timeout"] strong,
+.receipt[data-status="output-limit"] strong { color: var(--err); }
+
+.output {
+  min-height: 4.5rem;
+  max-height: 60dvh;
+  margin: 0;
+  overflow: auto;
+  font-family: var(--font-code);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.output .err { color: var(--err); }
+.output:empty::before { content: "Nothing printed yet."; color: var(--muted); }
+
+.printout.fresh { animation: slip 150ms ease-out; }
+@keyframes slip { from { transform: translateY(8px); opacity: 0.4; } }
+
+/* ---------- run dock: thumb-reachable on phones ---------- */
+.run-dock {
+  position: fixed;
+  inset: auto 0 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  padding: var(--s3) var(--s4) calc(var(--s3) + env(safe-area-inset-bottom));
+  background: var(--paper);
+  border-top: 1px solid var(--rule);
+}
+
+.notice { margin: 0; font-size: 0.875rem; color: var(--err); }
+.notice:empty { display: none; }
+
+.run {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s2);
+  min-height: 52px;
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 1.0625rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+}
+.run:hover { filter: brightness(1.06); }
+.run[data-running] { background: var(--ink); color: var(--paper); }
+.shortcut { display: none; font: 500 0.75rem var(--font-code); opacity: 0.8; }
+
+/* ---------- dialog ---------- */
+.sheet-dialog {
+  width: min(28rem, calc(100vw - 32px));
+  padding: var(--s5);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--sheet);
+  color: var(--ink);
+}
+.sheet-dialog::backdrop { background: rgb(20 19 15 / 0.45); }
+.sheet-dialog h2 { margin: 0 0 var(--s2); font-size: 1.125rem; }
+.dialog-note { margin: 0 0 var(--s4); color: var(--muted); font-size: 0.875rem; }
+.choices { display: grid; gap: var(--s2); margin-bottom: var(--s4); }
+.choices button {
+  display: flex;
+  justify-content: space-between;
+  min-height: 48px;
+  padding: 0 var(--s4);
+  align-items: center;
+  border: 1px solid var(--edge);
+  border-radius: var(--radius);
+  background: var(--paper);
+  font-weight: 650;
+  cursor: pointer;
+}
+.choices button span { font-family: var(--font-code); color: var(--muted); font-weight: 400; }
+.choices button:hover { border-color: var(--ink); }
+
+/* ---------- desktop: editor left, input + printout right ---------- */
+@media (min-width: 900px) {
+  :root { --code-size: 14.5px; }
+  .app {
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    padding: var(--s5) var(--s6);
+  }
+  .masthead { grid-template-columns: auto 1fr auto; gap: var(--s4); }
+  .wordmark { font-size: 1.625rem; }
+  .status { white-space: nowrap; }
+  .bench {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1.45fr) minmax(320px, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-areas: "filebar run" "editor io";
+    gap: var(--s4) var(--s5);
+    padding-top: var(--s5);
+  }
+  .filebar { grid-area: filebar; flex-wrap: nowrap; }
+  .file-actions { flex: none; }
+  .editor-pane { grid-area: editor; height: auto; }
+  .io { grid-area: io; min-height: 0; }
+  .printout { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .output { flex: 1; max-height: none; }
+  .run-dock {
+    grid-area: run;
+    position: static;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 0;
+    border: 0;
+    background: none;
+  }
+  .run { min-width: 10rem; padding: 0 var(--s5); }
+  .shortcut { display: inline; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .printout.fresh { animation: none; }
+}

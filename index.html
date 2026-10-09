@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="description" content="Run Python, C and C++ files on your phone, even with no internet." />
+    <meta name="theme-color" content="#F4F1EA" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#14130F" media="(prefers-color-scheme: dark)" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+    <title>Pocket Run</title>
+  </head>
+  <body>
+    <div class="app">
+      <header class="masthead">
+        <h1 class="wordmark">
+          <svg class="mark" viewBox="0 0 32 32" aria-hidden="true"><path d="M6 4h14l6 6v18H6z" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/><path d="M13 13l7 4.5-7 4.5z" fill="var(--accent)"/></svg>
+          Pocket Run
+        </h1>
+        <p class="tagline">Run Python, C and C++ files on your phone, even with no internet.</p>
+        <p class="status" role="status"><span class="status-dot" id="status-dot"></span><span id="status-text">Starting Python…</span></p>
+      </header>
+
+      <main class="bench">
+        <div class="filebar">
+          <label class="filename">
+            <span class="visually-hidden">File name</span>
+            <input id="filename" type="text" spellcheck="false" autocomplete="off" autocapitalize="off" />
+          </label>
+          <span class="lang-tag" id="lang-tag"></span>
+          <div class="file-actions">
+            <button type="button" class="tool" id="open-btn">Open</button>
+            <button type="button" class="tool" id="save-btn">Save</button>
+            <button type="button" class="tool" id="new-btn">New</button>
+          </div>
+          <input type="file" id="file-input" hidden />
+        </div>
+
+        <section class="editor-pane" id="editor" aria-label="Code"></section>
+
+        <section class="io">
+          <details class="stdin" id="stdin-box">
+            <summary>Input <span class="hint">what input() / scanf / cin will read</span></summary>
+            <label class="visually-hidden" for="stdin">Program input</label>
+            <textarea id="stdin" rows="4" spellcheck="false" autocapitalize="off"
+              placeholder="One value per line, typed before you press Run"></textarea>
+          </details>
+
+          <section class="printout" aria-labelledby="printout-title">
+            <h2 class="visually-hidden" id="printout-title">Output</h2>
+            <div class="pack-offer" id="pack-offer" hidden>
+              <p class="pack-text" id="pack-text"></p>
+              <progress id="pack-progress" max="1" value="0" hidden></progress>
+              <button type="button" class="tool pack-button" id="pack-button"></button>
+            </div>
+            <p class="receipt" id="receipt">Output appears here.</p>
+            <pre class="output" id="output" tabindex="0" aria-live="polite"></pre>
+          </section>
+        </section>
+
+        <div class="run-dock">
+          <p class="notice" id="notice" role="alert"></p>
+          <button type="button" class="run" id="run-btn"><span id="run-label">Run</span><kbd class="shortcut">Ctrl ↵</kbd></button>
+        </div>
+      </main>
+    </div>
+
+    <dialog class="sheet-dialog" id="new-dialog" aria-labelledby="new-title">
+      <form method="dialog">
+        <h2 id="new-title">New file</h2>
+        <p class="dialog-note">This replaces the code in the editor. Save it first if you need it.</p>
+        <div class="choices">
+          <button value="python">Python <span>.py</span></button>
+          <button value="c">C <span>.c</span></button>
+          <button value="cpp">C++ <span>.cpp</span></button>
+        </div>
+        <button class="tool" value="cancel">Cancel</button>
+      </form>
+    </dialog>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

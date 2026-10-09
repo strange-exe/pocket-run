@@ -1,0 +1,18 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "lib": [
+      "ES2022",
+      "WebWorker"
+    ],
+    "types": []
+  },
+  "include": [
+    "src/workers",
+    "src/runner/protocol.ts",
+    "src/runner/clang-protocol.ts",
+    "src/globals.d.ts",
+    "src/vendor/wasm-clang/shared.d.ts"
+  ],
+  "exclude": []
+}
