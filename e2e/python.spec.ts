@@ -106,6 +106,20 @@ test("Stop works while Python is still starting", async ({ page }) => {
   await expect(page.locator("#output")).toHaveText(""); // the program never ran
 });
 
+test.describe(() => {
+  // Leaving a page mid-start cancels the abandoned page's Pyodide downloads; WebKit then reports
+  // the loader's cancelled fetches. That noise belongs to the old page, not the new one.
+  test.use({ tolerate: [/^Unhandled Promise Rejection: TypeError: Load failed$/] });
+
+  test("reloading while Python is still starting doesn't break it", async ({ page }) => {
+    // WebKit blocks the first workers after a reload; the runtimes must retry, not fail.
+    await page.goto("/");
+    await page.goto("/");
+    await expect(page.locator("#status-dot")).toHaveAttribute("data-state", "ready", { timeout: 30_000 });
+    expect((await run(page, "main.py", 'print("after reload")')).output).toBe("after reload\n");
+  });
+});
+
 test("Ctrl+Enter runs from the editor", async ({ page }) => {
   await openFile(page, "main.py", 'print("keyboard")');
   await page.locator(".cm-content").click();

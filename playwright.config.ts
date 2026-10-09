@@ -8,10 +8,14 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   reporter: [["list"]],
-  use: {
-    baseURL: `http://localhost:${PORT}`,
-    ...devices["Desktop Chrome"],
-  },
+  use: { baseURL: `http://localhost:${PORT}` },
+  // The same suite in all three engines. WebKit is the engine inside Safari; Playwright's build
+  // is closest to real Safari on macOS, so a Mac (or an iPhone) is still the final check.
+  projects: [
+    { name: "chromium", use: { ...devices["Desktop Chrome"] } },
+    { name: "firefox", use: { ...devices["Desktop Firefox"] } },
+    { name: "webkit", use: { ...devices["Desktop Safari"] } },
+  ],
   // Tests run against the production build: the service worker and precache only exist there.
   webServer: {
     command: `npm run build && npx vite preview --port ${PORT} --strictPort`,

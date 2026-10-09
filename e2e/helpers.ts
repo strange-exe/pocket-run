@@ -1,12 +1,35 @@
 import { expect, test as base, type Page } from "@playwright/test";
 
-/** Fails any test whose page logs a console error or throws an uncaught exception. */
-export const test = base.extend<{ consoleErrors: string[] }>({
+/**
+ * WebKit blocks the first worker created after any reload, then logs these itself. The app retries
+ * and recovers (see START_ATTEMPTS in src/runner/runner.ts and the reload tests), so these exact
+ * messages are tolerated in WebKit only.
+ */
+const WEBKIT_RECOVERED_WORKER_BLOCK = [
+  /^Refused to load '[^']+\.worker-[\w-]+\.js' worker because of Cross-Origin-Embedder-Policy\.$/,
+  /^Worker load was blocked by Cross-Origin-Embedder-Policy$/,
+  /^Failed to load resource: Worker load was blocked by Cross-Origin-Embedder-Policy$/,
+  // Not end-anchored: WebKit's text can carry trailing whitespace, which a bare `$` rejects.
+  /\/assets\/[\w-]+\.worker-[\w-]+\.js due to access control checks/,
+  /\/pyodide\/[\d.]+\/pyodide\.mjs due to access control checks/,
+];
+
+/**
+ * Fails any test whose page logs a console error or throws an uncaught exception. A test can
+ * declare extra, specific noise it expects with `test.use({ tolerate: [...] })`.
+ */
+export const test = base.extend<{ consoleErrors: string[]; tolerate: RegExp[] }>({
+  tolerate: [[], { option: true }],
   consoleErrors: [
-    async ({ page }, use) => {
+    async ({ page, tolerate }, use, testInfo) => {
       const errors: string[] = [];
-      page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
-      page.on("pageerror", (e) => errors.push(e.message));
+      const tolerated = (text: string) =>
+        tolerate.some((re) => re.test(text)) ||
+        (testInfo.project.name === "webkit" && WEBKIT_RECOVERED_WORKER_BLOCK.some((re) => re.test(text)));
+      page.on("console", (m) => { if (m.type() === "error" && !tolerated(m.text())) errors.push(m.text()); });
+      // WebKit also reports the blocked worker load as a page error (no stack; Playwright splits
+      // "Cannot load http://…" at the colon into name and message), so the same list applies.
+      page.on("pageerror", (e) => { if (!tolerated(e.message) && !tolerated(`${e.name}:${e.message}`)) errors.push(e.message); });
       await use(errors);
       expect(errors, "console errors").toEqual([]);
     },

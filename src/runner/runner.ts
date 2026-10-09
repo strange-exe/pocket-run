@@ -36,6 +36,14 @@ export type StopReason = Exclude<RunStatus, "ok" | "error" | "compile-error">;
 const GRACE_MS = 1000;
 
 /**
+ * Starting a worker can fail spuriously: WebKit blocks workers created right after a reload
+ * that interrupted the previous page's start-up ("Worker load was blocked by
+ * Cross-Origin-Embedder-Policy"), while a new attempt moments later succeeds. Retry before
+ * telling the student the runtime couldn't start.
+ */
+export const START_ATTEMPTS = 3;
+
+/**
  * Drives one language worker. Stopping a program escalates: first a
  * KeyboardInterrupt through a SharedArrayBuffer (keeps the warm runtime), then
  * worker.terminate() plus a fresh boot when the program does not yield.
@@ -67,32 +75,57 @@ export class Runner {
 
   private boot() {
     this.setState("booting");
-    this.worker = this.createWorker();
+    this.ready = (async () => {
+      for (let attempt = 1; ; attempt++) {
+        try {
+          await this.startWorker();
+          this.setState("ready");
+          return;
+        } catch (e) {
+          if (attempt >= START_ATTEMPTS) {
+            this.bootError = (e as Error).message;
+            this.setState("failed");
+            throw e;
+          }
+          await new Promise((r) => setTimeout(r, 250 * attempt));
+        }
+      }
+    })();
+    this.ready.catch(() => {}); // surfaced through state; run() rethrows
+  }
+
+  /** One attempt to start the runtime; rejects (and discards the worker) if it can't start. */
+  private startWorker(): Promise<void> {
+    const worker = this.createWorker();
+    this.worker = worker;
     this.interrupt = self.crossOriginIsolated ? new SharedArrayBuffer(1) : null;
-    const worker = this.worker;
-    this.ready = new Promise((resolve, reject) => {
+    const started = new Promise<void>((resolve, reject) => {
+      // Both listeners only cover start-up; they are removed as soon as it succeeds or fails.
+      const detach = () => {
+        worker.removeEventListener("message", onMessage);
+        worker.removeEventListener("error", onError);
+      };
+      const fail = (message: string) => {
+        detach();
+        worker.terminate();
+        reject(new Error(message));
+      };
+      const onError = (e: ErrorEvent) => {
+        e.preventDefault(); // handled here (we retry); otherwise browsers also report it as uncaught
+        fail(e.message || "the runtime failed to start");
+      };
       const onMessage = ({ data }: MessageEvent<FromWorker>) => {
         if (data.type !== "ready" && data.type !== "boot-failed") return;
-        worker.removeEventListener("message", onMessage);
-        if (data.type === "ready") {
-          this.lastBoot = { source: data.source, ms: data.ms };
-          this.setState("ready");
-          resolve();
-        } else {
-          this.bootError = data.error;
-          this.setState("failed");
-          reject(new Error(data.error));
-        }
+        if (data.type === "boot-failed") return fail(data.error);
+        detach();
+        this.lastBoot = { source: data.source, ms: data.ms };
+        resolve();
       };
       worker.addEventListener("message", onMessage);
-      worker.addEventListener("error", (e) => {
-        this.bootError = e.message || "the runtime failed to start";
-        this.setState("failed");
-        reject(new Error(this.bootError));
-      }, { once: true });
+      worker.addEventListener("error", onError);
     });
-    this.ready.catch(() => {}); // surfaced through state; run() rethrows
     this.send({ type: "init", interrupt: this.interrupt });
+    return started;
   }
 
   private restart() {

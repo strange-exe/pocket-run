@@ -32,6 +32,12 @@ Your current file is kept on the device between visits.
 - C/C++: programs may use up to 256 MB of memory. **C++ exceptions (`try` / `throw`) are not supported** by this
   toolchain, and its C++ library is libc++ 8 (C++17 language; no `<filesystem>`). `#include <bits/stdc++.h>` works.
 
+### Browser support
+
+The same web app runs on desktop and on phones. The end-to-end suite runs in **Chromium, Firefox and WebKit**
+(the engine behind Safari) through Playwright, and `e2e/android-check.mjs` covers Chrome on Android. Playwright's
+WebKit is close to Safari but not identical; real Safari on a Mac or iPhone has not been tested yet.
+
 ## How it works
 
 ```

@@ -130,6 +130,12 @@ test.describe("C and C++", () => {
       expect(r.output).toContain("invalid memory access");
     });
 
+    test("integer division by zero is a readable crash", async ({ page }) => {
+      const r = await run(page, "main.c", "int main(void) { volatile int zero = 0; return 5 / zero; }");
+      expect(r.status).toBe("error");
+      expect(r.output).toContain("integer division by zero");
+    });
+
     test("memory bomb stays inside the 256 MB cap", async ({ page }) => {
       const r = await run(page, "main.c", "#include <stdlib.h>\n#include <string.h>\nint main(void) { for (;;) { char *p = malloc(1 << 24); if (!p) return 3; memset(p, 1, 1 << 24); } }");
       expect(["timeout", "error"]).toContain(r.status);

@@ -20,11 +20,14 @@ class OutputLimit extends Error {}
 /** Turns a WebAssembly trap into words a student can act on. */
 function describeCrash(e: unknown): string {
   const message = e instanceof Error ? e.message : String(e);
-  if (e instanceof RangeError && /call stack/i.test(message)) return "stack overflow (infinite or very deep recursion?)";
-  if (/out of bounds/.test(message)) return "invalid memory access (like a segmentation fault: bad pointer or array index)";
-  if (/unreachable/.test(message)) return "aborted (abort() was called or an assert failed)";
-  if (/divide by zero/.test(message)) return "integer division by zero";
-  if (/integer overflow/.test(message)) return "integer overflow in division";
+  // Each engine words its traps differently (Chrome / Firefox / Safari), e.g.
+  // "Maximum call stack size exceeded" / "too much recursion", "memory access out of bounds" /
+  // "Out of bounds memory access", "divide by zero" / "Division by zero".
+  if (/call stack|too much recursion/i.test(message)) return "stack overflow (infinite or very deep recursion?)";
+  if (/out of bounds/i.test(message)) return "invalid memory access (like a segmentation fault: bad pointer or array index)";
+  if (/unreachable/i.test(message)) return "aborted (abort() was called or an assert failed)";
+  if (/divi(de|sion) by zero/i.test(message)) return "integer division by zero";
+  if (/integer overflow/i.test(message)) return "integer overflow in division";
   return message;
 }
 

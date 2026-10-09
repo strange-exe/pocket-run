@@ -1,5 +1,5 @@
 import type { CLang, FromCompiler, FromProgram, ToCompiler, ToProgram } from "./clang-protocol";
-import type { RunOptions, RunResult, StopReason } from "./runner";
+import { START_ATTEMPTS, type RunOptions, type RunResult, type StopReason } from "./runner";
 
 /** "idle": the pack is installed but clang is not loaded yet (no C/C++ file has been opened). */
 export type CppState = "checking" | "absent" | "downloading" | "idle" | "booting" | "ready" | "running" | "failed";
@@ -42,11 +42,27 @@ export class CppRunner {
     this.compiler.postMessage(msg);
   }
 
-  private startCompiler() {
-    this.compiler = this.createCompiler();
+  private startCompiler(attempt = 1) {
+    const compiler = this.createCompiler();
+    this.compiler = compiler;
     this.ready = null;
     this.booted = false;
-    this.compiler.addEventListener("message", ({ data }: MessageEvent<FromCompiler>) => {
+    // A worker that can't even start (see START_ATTEMPTS) errors before its first reply: retry it.
+    let replied = false;
+    const onStartError = (e: ErrorEvent) => {
+      if (replied) return;
+      e.preventDefault(); // handled here (we retry); otherwise browsers also report it as uncaught
+      compiler.terminate();
+      if (attempt < START_ATTEMPTS) {
+        setTimeout(() => { if (this.compiler === compiler) this.startCompiler(attempt + 1); }, 250 * attempt);
+      } else {
+        this.error = e.message || "the C/C++ compiler failed to start";
+        this.setState("failed");
+      }
+    };
+    compiler.addEventListener("error", onStartError, { once: true });
+    compiler.addEventListener("message", ({ data }: MessageEvent<FromCompiler>) => {
+      if (!replied) { replied = true; compiler.removeEventListener("error", onStartError); }
       if (data.type === "pack") {
         if (!data.installed) this.setState("absent");
         else if (this.wantBoot) void this.boot();
@@ -178,12 +194,14 @@ export class CppRunner {
     }
 
     // ---- phase 2: run the program in a fresh worker; only this part has the time limit ----
-    const program = this.spare ?? this.createProgram();
+    const firstWorker = this.spare ?? this.createProgram();
     this.spare = this.createProgram(); // warm a replacement for the next run
     return new Promise<RunResult>((resolve) => {
       let reason: StopReason | null = null;
       let written = 0;
       let truncated = false;
+      let program = firstWorker;
+      let started = false; // the program has sent at least one message
       const finish = (result: RunResult) => {
         clearTimeout(timer);
         program.terminate();
@@ -196,7 +214,8 @@ export class CppRunner {
         reason = why;
         finish({ status: why, exitCode: null, ms: performance.now() - runStarted, truncated });
       };
-      program.onmessage = ({ data }: MessageEvent<FromProgram>) => {
+      const onMessage = ({ data }: MessageEvent<FromProgram>) => {
+        started = true;
         if (reason) return;
         if (data.type === "out") {
           const room = opts.outputCap - written;
@@ -216,11 +235,26 @@ export class CppRunner {
           truncated,
         });
       };
+      // The program is copied, not transferred, so it can be handed to a replacement worker
+      // if the first one fails to start (see START_ATTEMPTS).
+      const msg: ToProgram = { type: "run", wasm: outcome.wasm!, stdin: opts.stdin, outputCap: opts.outputCap };
+      const launch = (worker: Worker, attempt: number) => {
+        program = worker;
+        worker.onmessage = onMessage;
+        worker.onerror = (e) => {
+          e.preventDefault(); // handled here: retried, or reported in the program's output
+          if (reason) return;
+          worker.terminate();
+          if (!started && attempt < START_ATTEMPTS) return launch(this.createProgram(), attempt + 1);
+          opts.onOutput?.({ stream: "stderr", text: `\nThe program could not run: ${e.message || "its worker failed to start"}\n` });
+          finish({ status: "error", exitCode: null, ms: performance.now() - runStarted, truncated });
+        };
+        worker.postMessage(msg);
+      };
       this.active = { stop };
       const runStarted = performance.now();
       const timer = setTimeout(() => stop("timeout"), opts.timeoutMs);
-      const msg: ToProgram = { type: "run", wasm: outcome.wasm!, stdin: opts.stdin, outputCap: opts.outputCap };
-      program.postMessage(msg, [outcome.wasm!.buffer]);
+      launch(firstWorker, 1);
     });
   }
 }

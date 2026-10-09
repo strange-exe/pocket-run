@@ -9,7 +9,8 @@ const shots = process.env.SHOTS_DIR ?? "e2e/shots/after";
 
 for (const vp of viewports) {
   for (const scheme of ["light", "dark"] as const) {
-    test(`layout ${vp.name} ${scheme}`, async ({ page }) => {
+    test(`layout ${vp.name} ${scheme}`, async ({ page }, testInfo) => {
+      const dir = `${shots}/${testInfo.project.name}`;
       await page.emulateMedia({ colorScheme: scheme });
       await page.setViewportSize(vp);
       await openApp(page);
@@ -20,9 +21,9 @@ for (const vp of viewports) {
       await expect(page.locator("#run-btn")).toBeInViewport();
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 
-      await page.screenshot({ path: `${shots}/home-${vp.name}-${scheme}.png`, animations: "disabled" });
+      await page.screenshot({ path: `${dir}/home-${vp.name}-${scheme}.png`, animations: "disabled" });
       await run(page, "main.py", 'name = input("Your name: ")\nprint(f"Hello, {name}!")\nprint(undefined_name)', "Asha\n");
-      await page.screenshot({ path: `${shots}/ran-${vp.name}-${scheme}.png`, fullPage: true, animations: "disabled" });
+      await page.screenshot({ path: `${dir}/ran-${vp.name}-${scheme}.png`, fullPage: true, animations: "disabled" });
     });
   }
 }
@@ -33,7 +34,8 @@ test("no horizontal scroll at 320 px, while loading and when ready", async ({ pa
   await page.goto("/");
   await expect(page.locator("#status-dot")).toHaveAttribute("data-state", "booting");
   expect(await fits(), "while Python downloads").toBe(true);
-  await openApp(page);
+  // Same page, no reload: wait for it to finish starting.
+  await expect(page.locator("#status-dot")).toHaveAttribute("data-state", "ready", { timeout: 30_000 });
   expect(await fits(), "when ready").toBe(true);
 });
 
