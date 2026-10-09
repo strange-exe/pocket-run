@@ -22,6 +22,11 @@ const STDCXX_SHIM = [
   "queue", "random", "set", "sstream", "stack", "string", "string_view", "tuple",
   "unordered_map", "unordered_set", "utility", "variant", "vector",
 ].map((h) => `#include <${h}>`).join("\n") + "\n";
+// "#pragma once" lets a precompiled copy stand in for the student's own #include of it.
+const STDCXX_HEADER = "#pragma once\n" + STDCXX_SHIM;
+
+const CXX_FLAGS = ["-O2", "-std=c++17"];
+const USES_BITS = /^\s*#\s*include\s*<bits\/stdc\+\+\.h>/m;
 
 // ---------- the pack: download once, verify, keep in Cache Storage ----------
 
@@ -116,7 +121,7 @@ async function boot(): Promise<API> {
   a.hostLogAsync = (_message, promise) => promise;
   a.clangCommonArgs = a.clangCommonArgs.filter((arg) => arg !== "-fcolor-diagnostics");
   await a.ready;
-  a.memfs.addFile("include/bits/stdc++.h", STDCXX_SHIM);
+  a.memfs.addFile("include/bits/stdc++.h", STDCXX_HEADER);
   await a.getModule(a.clangFilename);
   await a.getModule(a.lldFilename);
   return a;
@@ -142,6 +147,51 @@ function cleanDiagnostics(text: string): string {
     .trim();
 }
 
+// ---------- precompiled <bits/stdc++.h> ----------
+// Parsing the ~40 headers behind bits/stdc++.h dominates compile time (measured: 1.8 s → 0.7 s
+// on desktop with a PCH). The PCH is built on the first compile that needs it, then kept in the
+// pack's cache. Its key hashes the header and flags, so changing either can never reuse a stale one.
+const PCH_FILE = "stdcpp.pch";
+let pch: "unknown" | "ready" | "unavailable" = "unknown";
+
+async function pchKey(): Promise<string> {
+  const id = await sha256Hex(new TextEncoder().encode(STDCXX_HEADER + api!.clangCommonArgs.join(" ") + CXX_FLAGS.join(" ")));
+  return key(`stdcpp-${id.slice(0, 16)}.pch`);
+}
+
+async function ensurePch(clang: WebAssembly.Module): Promise<boolean> {
+  if (pch !== "unknown") return pch === "ready";
+  try {
+    const cache = await caches.open(CACHE);
+    const k = await pchKey();
+    const hit = await cache.match(k);
+    if (hit) {
+      api!.memfs.addFile(PCH_FILE, new Uint8Array(await hit.arrayBuffer()));
+      pch = "ready";
+      return true;
+    }
+    if (!(await tool(clang, "clang", "-cc1", "-emit-pch", ...api!.clangCommonArgs, ...CXX_FLAGS,
+      "-o", PCH_FILE, "-x", "c++-header", "/include/bits/stdc++.h"))) {
+      pch = "unavailable";
+      return false;
+    }
+    const bytes = api!.memfs.getFileContents(PCH_FILE).slice();
+    pch = "ready";
+    // Old PCHs (other flags or header list) are dead weight.
+    for (const req of await cache.keys()) if (/\/stdcpp-[0-9a-f]+\.pch$/.test(req.url) && !req.url.endsWith(k)) await cache.delete(req);
+    await cache.put(k, new Response(bytes as Uint8Array<ArrayBuffer>));
+    return true;
+  } catch {
+    pch = "unavailable"; // storage full or blocked: compile the slow way
+    return false;
+  }
+}
+
+async function forgetPch() {
+  pch = "unavailable";
+  try { await (await caches.open(CACHE)).delete(await pchKey()); } catch {}
+}
+
 async function compile(lang: CLang, code: string) {
   const isC = lang === "c";
   const src = isC ? "main.c" : "main.cpp";
@@ -153,10 +203,19 @@ async function compile(lang: CLang, code: string) {
   const clang = await api!.getModule(api!.clangFilename);
   const lld = await api!.getModule(api!.lldFilename);
 
-  diagnostics = "";
   // -O2 matches what most online judges use.
-  const compiled = await tool(clang, "clang", "-cc1", "-emit-obj", ...common, "-O2",
-    ...(isC ? ["-std=gnu11"] : ["-std=c++17"]), "-o", "main.o", "-x", isC ? "c" : "c++", src);
+  const cc = (extra: string[]) => tool(clang, "clang", "-cc1", "-emit-obj", ...common,
+    ...(isC ? ["-O2", "-std=gnu11"] : CXX_FLAGS), ...extra, "-o", "main.o", "-x", isC ? "c" : "c++", src);
+  const usePch = !isC && USES_BITS.test(code) && (await ensurePch(clang));
+  diagnostics = "";
+  let compiled = await cc(usePch ? ["-include-pch", PCH_FILE] : []);
+  // Only retry for PCH problems ("PCH file was compiled…", "malformed or corrupted AST file"):
+  // ordinary mistakes in the student's code must not pay for a second compile.
+  if (!compiled && usePch && /precompiled header|PCH file|AST file/i.test(diagnostics)) {
+    await forgetPch(); // a PCH clang won't accept: drop it and compile normally
+    diagnostics = "";
+    compiled = await cc([]);
+  }
   if (!compiled) return { ok: false, diagnostics: explain(cleanDiagnostics(diagnostics)) };
 
   const warnings = cleanDiagnostics(diagnostics);

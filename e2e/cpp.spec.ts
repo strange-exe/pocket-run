@@ -37,6 +37,52 @@ test.describe("C and C++", () => {
     });
   }
 
+  test.describe("precompiled <bits/stdc++.h>", () => {
+    const BITS = '#include <bits/stdc++.h>\nusing namespace std;\nint main() { map<string, int> m{{"k", 7}}; cout << m["k"] << "\\n"; }';
+    const pchKeys = (page: Page) => page.evaluate(async () => {
+      const names = (await caches.keys()).filter((n) => n.startsWith("pocket-run-cpp-"));
+      const keys = await Promise.all(names.map(async (n) => (await (await caches.open(n)).keys()).map((r) => r.url)));
+      return keys.flat().filter((u) => /\/stdcpp-[0-9a-f]+\.pch$/.test(u));
+    });
+
+    test("is built once, cached, and reused after a reload", async ({ page }) => {
+      expect(await pchKeys(page)).toHaveLength(0);
+      expect((await run(page, "main.cpp", BITS)).output).toBe("7\n");
+      expect(await pchKeys(page)).toHaveLength(1);
+      await page.reload();
+      expect((await run(page, "main.cpp", BITS)).output).toBe("7\n");
+      expect(await pchKeys(page)).toHaveLength(1);
+    });
+
+    test("compile errors in the student's code still point at their line", async ({ page }) => {
+      const r = await run(page, "main.cpp", "#include <bits/stdc++.h>\nint main() {\n  undefined_thing();\n}");
+      expect(r.status).toBe("compile-error");
+      expect(r.output).toContain("main.cpp:3:3: error: use of undeclared identifier 'undefined_thing'");
+    });
+
+    test("a corrupt cached PCH is discarded and the program still compiles", async ({ page }) => {
+      await run(page, "main.cpp", BITS);
+      await page.evaluate(async () => {
+        for (const n of await caches.keys()) {
+          if (!n.startsWith("pocket-run-cpp-")) continue;
+          const cache = await caches.open(n);
+          for (const req of await cache.keys()) if (/\.pch$/.test(req.url)) await cache.put(req, new Response(new Uint8Array(64)));
+        }
+      });
+      await page.reload();
+      const r = await run(page, "main.cpp", BITS);
+      expect(r.status, r.output).toBe("ok");
+      expect(r.output).toBe("7\n");
+    });
+
+    test("files without bits/stdc++.h don't get the PCH's names", async ({ page }) => {
+      // With only <cstdio>, std::vector must stay undeclared, exactly as with GCC.
+      const r = await run(page, "main.cpp", "#include <cstdio>\nint main() { std::vector<int> v; }");
+      expect(r.status).toBe("compile-error");
+      expect(r.output).toContain("no member named 'vector' in namespace 'std'");
+    });
+  });
+
   test("exit code is reported", async ({ page }) => {
     const r = await run(page, "main.c", "#include <stdlib.h>\nint main(void) { exit(5); }");
     expect(r.status).toBe("error");

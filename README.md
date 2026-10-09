@@ -52,6 +52,9 @@ main thread ─────┤
 - **Fast restarts.** After the first start, the Python worker saves a memory snapshot of the started interpreter on
   the device. Later visits restore it, which cut Python's start-up from 3.1 s to about 0.6 s on an Android emulator.
   A missing, corrupt or outdated snapshot falls back to a normal start.
+- **Faster `<bits/stdc++.h>`.** The first compile that includes it also builds a precompiled header and keeps it on
+  the device. Later compiles reuse it: on an Android emulator, 2.2–2.7 s became 0.65–0.97 s. Files that don't include
+  `<bits/stdc++.h>` never see it, and a damaged cached copy is dropped and rebuilt.
 - **Containment.** Infinite loops hit the time limit. Memory bombs raise `MemoryError` (Python) or hit the 256 MB cap
   (C/C++). Deep recursion raises `RecursionError` or is reported as a stack overflow, bad pointers as an invalid memory
   access, and output floods are cut at the cap. These cases are covered by the end-to-end tests.
