@@ -1,0 +1,58 @@
+name: CI
+
+# Deploys are done by Cloudflare Pages' Git integration on every push to main;
+# this workflow checks that each push and pull request actually works.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Tests (${{ matrix.browser }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - run: npm ci
+
+      # The C/C++ toolchain (~60 MB, SHA-256 verified by scripts/fetch-clang.mjs) rarely changes.
+      - uses: actions/cache@v6
+        with:
+          path: node_modules/.cache/wasm-clang
+          key: wasm-clang-${{ hashFiles('scripts/fetch-clang.mjs') }}
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Install ${{ matrix.browser }}
+        run: npx playwright install --with-deps ${{ matrix.browser }}
+
+      # Builds (including the typecheck), serves the production build, and runs the e2e suite.
+      - name: End-to-end tests
+        run: npx playwright test --project=${{ matrix.browser }}
+
+      - name: Keep failure details
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-results-${{ matrix.browser }}
+          path: test-results/
+          retention-days: 7
