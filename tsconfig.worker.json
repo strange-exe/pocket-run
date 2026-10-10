@@ -12,7 +12,8 @@
     "src/runner/protocol.ts",
     "src/runner/clang-protocol.ts",
     "src/globals.d.ts",
-    "src/vendor/wasm-clang/shared.d.ts"
+    "src/vendor/wasm-clang/shared.d.ts",
+    "src/runner/input-channel.ts"
   ],
   "exclude": []
 }

@@ -11,7 +11,6 @@ test.describe("correct output", () => {
     ["sep and end", 'print(1, 2, sep="-", end="!")\nprint()', "", "1-2!\n"],
     ["no trailing newline", 'print("x", end="")', "", "x"],
     ["input prompt", 'name = input("Name: ")\nprint("Hi", name)', "Asha\n", "Name: Hi Asha\n"],
-    ["EOF on missing input", "try:\n    input()\nexcept EOFError:\n    print('eof')", "", "eof\n"],
     ["unicode", 'print("नमस्ते ✓")', "", "नमस्ते ✓\n"],
   ];
   for (const [name, code, stdin, expected] of cases) {

@@ -1,6 +1,7 @@
 /// <reference lib="webworker" />
 // Python runtime worker (Pyodide). One worker = one warm interpreter.
 import type { PyodideAPI } from "pyodide";
+import { waitForInput } from "../runner/input-channel";
 import type { BootSource, FromWorker, Stream, ToWorker } from "../runner/protocol";
 
 declare const self: DedicatedWorkerGlobalScope;
@@ -26,7 +27,10 @@ def __pocket_run(code, filename):
     except KeyboardInterrupt:
         return (130, True, False)
     except BaseException as e:
-        traceback.print_exception(type(e), e, e.__traceback__.tb_next)
+        try:
+            traceback.print_exception(type(e), e, e.__traceback__.tb_next)
+        except KeyboardInterrupt:  # Stop pressed while the error was being reported
+            return (130, True, False)
         return (1, False, isinstance(e, MemoryError))
     finally:
         sys.stdout.flush()
@@ -126,16 +130,23 @@ async function boot(interrupt: SharedArrayBuffer | null): Promise<PyodideAPI> {
     setTimeout(() => void saveSnapshot(key, made), 0); // after "ready" is posted
   }
 
-  if (interrupt) py.setInterruptBuffer(new Uint8Array(interrupt));
+  if (interrupt) {
+    interruptFlag = new Uint8Array(interrupt);
+    py.setInterruptBuffer(interruptFlag);
+  }
   py.setStdout(writer("stdout"));
   py.setStderr(writer("stderr"));
   py.runPython(RUNNER_PY);
   return py;
 }
 
+let inputChannel: SharedArrayBuffer | null = null;
+let interruptFlag: Uint8Array | null = null;
+
 self.onmessage = async ({ data }: MessageEvent<ToWorker>) => {
   if (data.type === "init") {
     const t0 = performance.now();
+    inputChannel = data.input;
     booting = boot(data.interrupt);
     try {
       await booting;
@@ -147,15 +158,47 @@ self.onmessage = async ({ data }: MessageEvent<ToWorker>) => {
   }
 
   const py = await booting!;
-  let stdin: string | null = data.stdin;
-  py.setStdin({ stdin: () => { const s = stdin; stdin = null; return s || null; } });
+  // The Input box first; after that, ask the student while the program runs (if possible).
+  // A last line typed without Enter is still a complete line, not a request for more.
+  let pending: Uint8Array = new TextEncoder().encode(data.stdin && !data.stdin.endsWith("\n") ? data.stdin + "\n" : data.stdin);
+  let ended = !inputChannel;
+  let waitedMs = 0;
+  // read() is called once per read, with a buffer to fill. It returns what's available (the rest of
+  // the Input box, or one live line) and only waits when nothing is left, like a terminal. (The
+  // stdin() callback style keeps asking for more to fill Python's buffer, so a live line never
+  // got back to the program.) Returning 0 means end of input.
+  py.setStdin({
+    read: (buffer: Uint8Array) => {
+      if (!pending.length && !ended) {
+        flush(); // the prompt (e.g. input("Name: ")) must be on screen before we wait
+        const t = performance.now();
+        const line = waitForInput(inputChannel!, () => post({ type: "input-request" }));
+        waitedMs += performance.now() - t;
+        // Woken by Stop rather than by "End input": stop right here, so the program sees a
+        // KeyboardInterrupt, not a fake end-of-file it might handle and carry on from.
+        if (!line && interruptFlag?.[0] === 2) py.checkInterrupt();
+        if (line) pending = line;
+        else ended = true;
+      }
+      const n = Math.min(buffer.length, pending.length);
+      buffer.set(pending.subarray(0, n));
+      pending = pending.subarray(n);
+      return n;
+    },
+  });
 
   const t0 = performance.now();
   const run = py.globals.get("__pocket_run");
-  const result = run(data.code, data.filename);
-  const [exitCode, interrupted, recycle] = result.toJs() as [number, boolean, boolean];
-  result.destroy();
-  run.destroy();
+  let exitCode = 130, interrupted = true, recycle = false;
+  try {
+    const result = run(data.code, data.filename);
+    [exitCode, interrupted, recycle] = result.toJs() as [number, boolean, boolean];
+    result.destroy();
+  } catch {
+    // Only a KeyboardInterrupt landing in the wrapper's own last steps can get here.
+  } finally {
+    run.destroy();
+  }
   flush();
-  post({ type: "done", exitCode, interrupted, recycle, ms: performance.now() - t0 });
+  post({ type: "done", exitCode, interrupted, recycle, ms: performance.now() - t0 - waitedMs });
 };

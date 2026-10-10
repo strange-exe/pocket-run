@@ -1,5 +1,6 @@
 import type { CLang, FromCompiler, FromProgram, ToCompiler, ToProgram } from "./clang-protocol";
-import { START_ATTEMPTS, type RunOptions, type RunResult, type StopReason } from "./runner";
+import { createInputChannel, sendInput } from "./input-channel";
+import { RunClock, START_ATTEMPTS, type RunOptions, type RunResult, type StopReason } from "./runner";
 
 /** "idle": the pack is installed but clang is not loaded yet (no C/C++ file has been opened). */
 export type CppState = "checking" | "absent" | "downloading" | "idle" | "booting" | "ready" | "running" | "failed";
@@ -24,7 +25,7 @@ export class CppRunner {
   private ready: Promise<void> | null = null;
   private booted = false;
   private nextId = 0;
-  private active: { stop: (reason: StopReason) => void } | null = null;
+  private active: { stop: (reason: StopReason) => void; provideInput?: (text: string | null) => void } | null = null;
 
   constructor(
     private readonly createCompiler: () => Worker,
@@ -126,6 +127,11 @@ export class CppRunner {
     this.active?.stop("stopped");
   }
 
+  /** Answers the program's request for input: a line (with "\n") or null for end of input. */
+  provideInput(text: string | null) {
+    this.active?.provideInput?.(text);
+  }
+
   async run(opts: RunOptions & { lang: CLang }): Promise<RunResult> {
     if (this.active) throw new Error("a program is already running");
     if (this.state === "absent" || this.state === "downloading" || this.state === "checking") {
@@ -202,9 +208,11 @@ export class CppRunner {
       let truncated = false;
       let program = firstWorker;
       let started = false; // the program has sent at least one message
+      let waitingForInput = false;
+      const input = createInputChannel();
       const finish = (result: RunResult) => {
-        clearTimeout(timer);
-        program.terminate();
+        clock.stop();
+        program.terminate(); // also ends a program asleep waiting for input
         this.active = null;
         this.setState("ready");
         resolve({ ...result, compileMs });
@@ -212,7 +220,13 @@ export class CppRunner {
       const stop = (why: StopReason) => {
         if (reason) return;
         reason = why;
-        finish({ status: why, exitCode: null, ms: performance.now() - runStarted, truncated });
+        finish({ status: why, exitCode: null, ms: performance.now() - runStarted - clock.waitedMs, truncated });
+      };
+      const provideInput = (text: string | null) => {
+        if (!waitingForInput || !input || reason) return;
+        waitingForInput = false;
+        sendInput(input, text);
+        clock.resume();
       };
       const onMessage = ({ data }: MessageEvent<FromProgram>) => {
         started = true;
@@ -223,6 +237,12 @@ export class CppRunner {
           written += text.length;
           if (text) opts.onOutput?.({ stream: data.stream, text });
           if (text.length < data.text.length) { truncated = true; stop("output-limit"); }
+          return;
+        }
+        if (data.type === "input-request") {
+          waitingForInput = true;
+          clock.pause();
+          opts.onInputRequest?.();
           return;
         }
         if (data.truncated) { truncated = true; return stop("output-limit"); }
@@ -237,7 +257,7 @@ export class CppRunner {
       };
       // The program is copied, not transferred, so it can be handed to a replacement worker
       // if the first one fails to start (see START_ATTEMPTS).
-      const msg: ToProgram = { type: "run", wasm: outcome.wasm!, stdin: opts.stdin, outputCap: opts.outputCap };
+      const msg: ToProgram = { type: "run", wasm: outcome.wasm!, stdin: opts.stdin, outputCap: opts.outputCap, input };
       const launch = (worker: Worker, attempt: number) => {
         program = worker;
         worker.onmessage = onMessage;
@@ -251,9 +271,9 @@ export class CppRunner {
         };
         worker.postMessage(msg);
       };
-      this.active = { stop };
+      this.active = { stop, provideInput };
       const runStarted = performance.now();
-      const timer = setTimeout(() => stop("timeout"), opts.timeoutMs);
+      const clock = new RunClock(opts.timeoutMs, () => stop("timeout"));
       launch(firstWorker, 1);
     });
   }

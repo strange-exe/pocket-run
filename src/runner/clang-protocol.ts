@@ -17,15 +17,24 @@ export type FromCompiler =
   | { type: "boot-failed"; error: string }
   | { type: "compiled"; id: number; ok: boolean; wasm?: Uint8Array; diagnostics: string; ms: number };
 
-export type ToProgram = { type: "run"; wasm: Uint8Array; stdin: string; outputCap: number };
+export type ToProgram = {
+  type: "run";
+  wasm: Uint8Array;
+  stdin: string;
+  outputCap: number;
+  /** Live input channel (see input-channel.ts); null when the page isn't cross-origin isolated. */
+  input: SharedArrayBuffer | null;
+};
 
 export type FromProgram =
   | { type: "out"; stream: "stdout" | "stderr"; text: string }
+  | { type: "input-request" }
   | {
       type: "done";
       exitCode: number;
       /** Set when the program trapped (stack overflow, bad memory access, abort…). */
       crash?: string;
       truncated: boolean;
+      /** Run time, excluding time spent waiting for the student's input. */
       ms: number;
     };

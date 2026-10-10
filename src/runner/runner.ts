@@ -1,3 +1,4 @@
+import { createInputChannel, sendInput } from "./input-channel";
 import type { BootSource, FromWorker, Stream, ToWorker } from "./protocol";
 
 export type RunnerState = "booting" | "ready" | "running" | "failed";
@@ -14,6 +15,39 @@ export interface RunOptions {
   onOutput?: (chunk: OutputChunk) => void;
   /** Compiled languages report which step a run is in, for the progress line. */
   onPhase?: (phase: "starting" | "compiling" | "running") => void;
+  /**
+   * The program needs more input than the Input box held. The runner pauses its time limit
+   * until the page calls provideInput(line) or provideInput(null) for end of input.
+   */
+  onInputRequest?: () => void;
+}
+
+/**
+ * The time limit counts only the program's own time: it pauses while the program waits for
+ * the student to type, and resumes when the line arrives.
+ */
+export class RunClock {
+  private budget: number;
+  private segmentStart = performance.now();
+  private timer: ReturnType<typeof setTimeout> | undefined;
+  private waitStart = 0;
+  waitedMs = 0;
+
+  constructor(limitMs: number, private readonly onExpire: () => void) {
+    this.budget = limitMs;
+    this.timer = setTimeout(onExpire, limitMs);
+  }
+  pause() {
+    clearTimeout(this.timer);
+    this.budget -= performance.now() - this.segmentStart;
+    this.waitStart = performance.now();
+  }
+  resume() {
+    this.waitedMs += performance.now() - this.waitStart;
+    this.segmentStart = performance.now();
+    this.timer = setTimeout(this.onExpire, Math.max(0, this.budget));
+  }
+  stop() { clearTimeout(this.timer); }
 }
 
 export interface RunResult {
@@ -58,7 +92,8 @@ export class Runner {
   private worker!: Worker;
   private interrupt: SharedArrayBuffer | null = null;
   private ready!: Promise<void>;
-  private active: { stop: (reason: StopReason) => void } | null = null;
+  private input: SharedArrayBuffer | null = null;
+  private active: { stop: (reason: StopReason) => void; provideInput?: (text: string | null) => void } | null = null;
 
   constructor(private readonly createWorker: () => Worker) {
     this.boot();
@@ -124,7 +159,8 @@ export class Runner {
       worker.addEventListener("message", onMessage);
       worker.addEventListener("error", onError);
     });
-    this.send({ type: "init", interrupt: this.interrupt });
+    this.input = createInputChannel();
+    this.send({ type: "init", interrupt: this.interrupt, input: this.input });
     return started;
   }
 
@@ -136,6 +172,11 @@ export class Runner {
   /** Ask the running program to stop (user pressed Stop). */
   stop() {
     this.active?.stop("stopped");
+  }
+
+  /** Answers the program's request for input: a line (with "\n") or null for end of input. */
+  provideInput(text: string | null) {
+    this.active?.provideInput?.(text);
   }
 
   async run(opts: RunOptions): Promise<RunResult> {
@@ -163,13 +204,15 @@ export class Runner {
       const started = performance.now();
       const worker = this.worker;
       const interrupt = this.interrupt;
+      const input = this.input;
       let written = 0;
       let truncated = false;
       let reason: StopReason | null = null;
       let hardKill: ReturnType<typeof setTimeout> | undefined;
+      let waitingForInput = false;
 
       const finish = (result: RunResult, recycle: boolean) => {
-        clearTimeout(timer);
+        clock.stop();
         clearTimeout(hardKill);
         worker.removeEventListener("message", onMessage);
         this.active = null;
@@ -183,9 +226,18 @@ export class Runner {
         if (reason) return;
         reason = why;
         if (interrupt) Atomics.store(new Uint8Array(interrupt), 0, 2); // SIGINT
+        // A program asleep waiting for input can't see the interrupt: wake it with end of input.
+        if (waitingForInput && input) { waitingForInput = false; sendInput(input, null); }
         hardKill = setTimeout(() => {
-          finish({ status: why, exitCode: null, ms: performance.now() - started, truncated }, true);
+          finish({ status: why, exitCode: null, ms: performance.now() - started - clock.waitedMs, truncated }, true);
         }, interrupt ? GRACE_MS : 0);
+      };
+
+      const provideInput = (text: string | null) => {
+        if (!waitingForInput || !input || reason) return;
+        waitingForInput = false;
+        sendInput(input, text);
+        clock.resume();
       };
 
       const onMessage = ({ data }: MessageEvent<FromWorker>) => {
@@ -199,14 +251,19 @@ export class Runner {
             truncated = true;
             stop("output-limit");
           }
+        } else if (data.type === "input-request") {
+          if (reason || !input) return;
+          waitingForInput = true;
+          clock.pause();
+          opts.onInputRequest?.();
         } else if (data.type === "done") {
           const status: RunStatus = reason ?? (data.exitCode === 0 ? "ok" : "error");
           finish({ status, exitCode: data.exitCode, ms: data.ms, truncated }, data.recycle);
         }
       };
 
-      const timer = setTimeout(() => stop("timeout"), opts.timeoutMs);
-      this.active = { stop };
+      const clock = new RunClock(opts.timeoutMs, () => stop("timeout"));
+      this.active = { stop, provideInput };
       worker.addEventListener("message", onMessage);
       this.send({ type: "run", code: opts.code, stdin: opts.stdin, filename: opts.filename });
     });

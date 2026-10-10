@@ -51,6 +51,14 @@ test("on a phone, the output is visible after Run (not under the Run bar)", asyn
   expect(out!.y + Math.min(out!.height, 40), "first output line above the Run bar").toBeLessThanOrEqual(dock!.y);
 });
 
+test("long lines wrap instead of scrolling the editor sideways", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openApp(page);
+  await page.locator("#file-input").setInputFiles({ name: "main.py", mimeType: "text/plain", buffer: Buffer.from(`print("${"word ".repeat(40)}")\n`) });
+  const overflow = await page.locator(".cm-scroller").evaluate((el) => el.scrollWidth - el.clientWidth);
+  expect(overflow).toBeLessThanOrEqual(1);
+});
+
 test("touch targets are at least 44 px", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await openApp(page);

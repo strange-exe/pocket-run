@@ -17,17 +17,22 @@ works offline and a runaway program can only ever affect its own browser tab.
 
 1. **Open** a `.py`, `.c` or `.cpp` file from your device, or type in the editor. The language comes from the file
    extension (`.py`, `.c`, `.cpp` / `.cc` / `.cxx`).
-2. Put anything the program reads (`input()`, `scanf`, `cin`) in **Input**, one value per line.
-3. Press **Run** (or <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Enter</kbd>). Output appears on the printout below.
+2. Press **Run** (or <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Enter</kbd>). Output appears on the printout below.
    The first time you run C or C++, Pocket Run offers the one-time compiler download.
-4. **Save** downloads the file back to your device with the same name.
+3. When the program reads input (`input()`, `scanf`, `cin`), Pocket Run asks for it while the program runs, like a
+   terminal. **End input** (or <kbd>Ctrl</kbd> + <kbd>D</kbd>) sends end-of-file. You can also put values in the
+   **Input** box up front; the program reads those first and only asks for anything beyond them.
+4. **Save** downloads the file back to your device with the same name. **Share** creates a link that opens the file
+   (with its name and Input) in anyone's Pocket Run. The file travels inside the link's `#` part, which browsers never
+   send to a server, and opening a link never runs the code.
 
-Your current file is kept on the device between visits.
+Your current file is kept on the device between visits. On phones, a bar of hard-to-reach symbols
+(`{ } [ ] ( ) ; " < > \ …`, Tab and cursor keys) sits above the keyboard while you edit code.
 
 ### Limits
 
-- Programs stop after **8 seconds** and after **64 KB** of output. **Stop** ends a run at any time.
-- Input is read from the Input box, not typed live while the program runs.
+- Programs stop after **8 seconds** of running and after **64 KB** of output. Time spent waiting for you to type
+  doesn't count. **Stop** ends a run at any time.
 - One file at a time, up to 512 KB. Standard library only (no `pip install`, no extra C libraries).
 - C/C++: programs may use up to 256 MB of memory. **C++ exceptions (`try` / `throw`) are not supported** by this
   toolchain, and its C++ library is libc++ 8 (C++17 language; no `<filesystem>`). `#include <bits/stdc++.h>` works.
@@ -61,6 +66,11 @@ main thread ─────┤
 - **Faster `<bits/stdc++.h>`.** The first compile that includes it also builds a precompiled header and keeps it on
   the device. Later compiles reuse it: on an Android emulator, 2.2–2.7 s became 0.65–0.97 s. Files that don't include
   `<bits/stdc++.h>` never see it, and a damaged cached copy is dropped and rebuilt.
+- **Live input.** A program reads stdin synchronously inside its worker, so it can't wait for a browser event. When it
+  needs more input, the worker marks a `SharedArrayBuffer` channel as waiting, asks the page, and sleeps in
+  `Atomics.wait` until the page writes the typed line into shared memory (`src/runner/input-channel.ts`). The time
+  limit pauses meanwhile. C programs are linked with a tiny start-up object that makes `stdout` unbuffered, so a
+  `printf("Enter n: ")` prompt is visible before `scanf` waits.
 - **Containment.** Infinite loops hit the time limit. Memory bombs raise `MemoryError` (Python) or hit the 256 MB cap
   (C/C++). Deep recursion raises `RecursionError` or is reported as a stack overflow, bad pointers as an invalid memory
   access, and output floods are cut at the cap. These cases are covered by the end-to-end tests.
@@ -73,8 +83,8 @@ Requires Node.js 20.19+ or 22.12+.
 npm install
 npm run dev          # http://localhost:5173
 npm test             # unit tests (Vitest)
-npx playwright install chromium
-npm run e2e          # builds, serves the production build, runs browser tests
+npx playwright install chromium firefox webkit
+npm run e2e          # builds, serves the production build, runs browser tests in all three
 npm run build        # typecheck + production build into dist/
 ```
 
@@ -95,10 +105,13 @@ node e2e/android-check.mjs online
 service workers need. Stop the preview server and run `node e2e/android-check.mjs offline` to check the app loads
 from the device's cache. The script talks to Chrome through its DevTools socket, so Chrome needs no flags.
 
-## Deploying
+## Continuous integration and deploying
 
-The site is static. On Cloudflare Pages, use build command `npm run build` and output directory `dist`.
-`public/_headers` sets the cross-origin isolation headers. Cloudflare Pages limits each file to 25 MiB: clang is
+Every push and pull request runs the unit tests and the end-to-end suite in Chromium, Firefox and WebKit
+(`.github/workflows/ci.yml`, one parallel job per browser).
+
+The site is static and deploys through Cloudflare Pages' Git integration: build command `npm run build`, output
+directory `dist`, Node version from `.node-version`. `public/_headers` sets the cross-origin isolation headers. Cloudflare Pages limits each file to 25 MiB: clang is
 29.8 MiB uncompressed, so it ships gzipped (10.6 MB) and is decompressed on the device.
 
 ## License

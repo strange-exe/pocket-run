@@ -68,6 +68,9 @@
 *, *::before, *::after { box-sizing: border-box; }
 
 html, body { margin: 0; }
+/* Anything scrolled into view (including a focused field when the keyboard opens) stops above
+   the fixed Run bar; --dock-h is its measured height (0 on desktop, where it isn't fixed). */
+html { scroll-padding-bottom: calc(var(--dock-h, 0px) + var(--s3)); }
 
 body {
   background: var(--paper);
@@ -300,6 +303,32 @@ button, input, textarea { font: inherit; color: inherit; }
   overflow-wrap: anywhere;
 }
 .output .err { color: var(--err); }
+/* What the student typed while the program ran, echoed like a terminal. */
+.output .echo { color: var(--accent); font-weight: 600; }
+.output .echo.muted { color: var(--muted); font-weight: 400; font-style: italic; }
+
+.live-input {
+  display: grid;
+  gap: var(--s2);
+  margin-top: var(--s2);
+  padding-top: var(--s2);
+  border-top: 1px dashed var(--rule);
+}
+.live-input[hidden] { display: none; }
+.live-label { font-size: 0.8125rem; font-weight: 650; color: var(--accent); }
+.live-row { display: flex; flex-wrap: wrap; gap: var(--s2); }
+.live-row input {
+  flex: 1 1 10rem;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 var(--s3);
+  border: 2px solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--paper);
+  font-family: var(--font-code);
+  font-size: var(--code-size);
+}
+.live-row input:focus-visible { outline-offset: 1px; }
 .output:empty::before { content: "Nothing printed yet."; color: var(--muted); }
 
 .printout.fresh { animation: slip 150ms ease-out; }
@@ -308,7 +337,8 @@ button, input, textarea { font: inherit; color: inherit; }
 /* ---------- run dock: thumb-reachable on phones ---------- */
 .run-dock {
   position: fixed;
-  inset: auto 0 0;
+  /* --kb-inset lifts the bar above an on-screen keyboard (measured with visualViewport). */
+  inset: auto 0 var(--kb-inset, 0px);
   z-index: 10;
   display: flex;
   flex-direction: column;
@@ -318,8 +348,47 @@ button, input, textarea { font: inherit; color: inherit; }
   border-top: 1px solid var(--rule);
 }
 
-.notice { margin: 0; font-size: 0.875rem; color: var(--err); }
-.notice:empty { display: none; }
+/* Symbols that are slow to reach on a phone keyboard; shown while editing on touch screens. */
+.symbol-bar {
+  display: flex;
+  gap: var(--s1);
+  margin: 0 calc(-1 * var(--s4));
+  padding: 0 var(--s4);
+  overflow-x: auto;
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+}
+.symbol-bar[hidden] { display: none; }
+.symbol-bar::-webkit-scrollbar { display: none; }
+.symbol-bar button {
+  flex: none;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 var(--s2);
+  border: 1px solid var(--edge);
+  border-radius: var(--radius);
+  background: var(--sheet);
+  font: 600 1.0625rem var(--font-code);
+  touch-action: manipulation;
+}
+.symbol-bar button:active { background: var(--rule); }
+.symbol-bar .wide { font: 600 0.875rem var(--font-ui); }
+
+.notice { margin: 0; font-size: 0.875rem; color: var(--err); overflow-wrap: anywhere; }
+.notice[hidden] { display: none; }
+.notice[data-tone="info"] { color: var(--ink); }
+.notice-action {
+  min-height: 44px;
+  padding: 0 var(--s2);
+  border: 0;
+  background: none;
+  color: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.notice-action[hidden] { display: none; }
 
 .run {
   display: flex;

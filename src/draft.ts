@@ -9,10 +9,12 @@ export interface Draft {
 }
 
 const KEY = "pocket-run:draft";
+/** The student's own file, kept aside when a share link replaces it. */
+export const PREVIOUS_KEY = "pocket-run:draft:previous";
 
-export function loadDraft(): Draft | null {
+export function loadDraft(key = KEY): Draft | null {
   try {
-    const raw = localStorage.getItem(KEY);
+    const raw = localStorage.getItem(key);
     if (!raw) return null;
     const d = JSON.parse(raw) as Partial<Draft>;
     if (typeof d.filename !== "string" || typeof d.code !== "string") return null;
@@ -22,9 +24,9 @@ export function loadDraft(): Draft | null {
   }
 }
 
-export function saveDraft(draft: Draft) {
+export function saveDraft(draft: Draft, key = KEY) {
   try {
-    localStorage.setItem(KEY, JSON.stringify(draft));
+    localStorage.setItem(key, JSON.stringify(draft));
   } catch {
     // Quota or privacy mode: the editor keeps working, it just won't survive a reload.
   }

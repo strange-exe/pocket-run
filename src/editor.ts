@@ -1,5 +1,5 @@
-import { closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
-import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
+import { closeBrackets, closeBracketsKeymap, insertBracket } from "@codemirror/autocomplete";
+import { cursorCharLeft, cursorCharRight, defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { cpp } from "@codemirror/lang-cpp";
 import { python } from "@codemirror/lang-python";
 import { bracketMatching, HighlightStyle, indentOnInput, indentUnit, syntaxHighlighting } from "@codemirror/language";
@@ -43,6 +43,9 @@ export interface CodeEditor {
   getCode(): string;
   setCode(code: string): void;
   setLanguage(id: LanguageId | null): void;
+  /** Inserts text at the cursor the way typing it would (brackets and quotes get their pair). */
+  type(text: string): void;
+  moveCursor(direction: "left" | "right"): void;
 }
 
 export function createEditor(
@@ -64,6 +67,9 @@ export function createEditor(
         bracketMatching(),
         closeBrackets(),
         indentUnit.of("    "),
+        // Wrap long lines instead of scrolling sideways: on a phone, sideways scrolling hides
+        // the start of every line (the line number stays with the first row of a wrapped line).
+        EditorView.lineWrapping,
         EditorState.tabSize.of(4),
         // Tab indents; Escape then Tab leaves the editor (CodeMirror's keyboard-trap escape hatch).
         keymap.of([...options.extraKeys, ...closeBracketsKeymap, ...defaultKeymap, ...historyKeymap, indentWithTab]),
@@ -81,5 +87,10 @@ export function createEditor(
     getCode: () => view.state.doc.toString(),
     setCode: (code) => view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: code } }),
     setLanguage: (id) => view.dispatch({ effects: lang.reconfigure(languageExtension(id)) }),
+    type: (text) => {
+      const bracket = text.length === 1 ? insertBracket(view.state, text) : null;
+      view.dispatch(bracket ?? { ...view.state.replaceSelection(text), scrollIntoView: true, userEvent: "input.type" });
+    },
+    moveCursor: (direction) => { (direction === "left" ? cursorCharLeft : cursorCharRight)(view); },
   };
 }

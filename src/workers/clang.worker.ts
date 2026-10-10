@@ -26,6 +26,17 @@ const STDCXX_SHIM = [
 const STDCXX_HEADER = "#pragma once\n" + STDCXX_SHIM;
 
 const CXX_FLAGS = ["-O2", "-std=c++17"];
+
+// Linked into every program. C's printf("Enter n: ") stays in stdout's buffer until a newline,
+// so with live input the prompt wouldn't show before scanf waits. (C++'s cin flushes cout by
+// itself; C doesn't.) A separate object, not an injected header, so students' code and its
+// line numbers are untouched.
+const INIT_OBJECT = "pocket_run_init.o";
+const INIT_SOURCE = `#include <stdio.h>
+__attribute__((constructor)) static void pocket_run_unbuffered_stdout(void) {
+  setvbuf(stdout, NULL, _IONBF, 0);
+}
+`;
 const USES_BITS = /^\s*#\s*include\s*<bits\/stdc\+\+\.h>/m;
 
 // ---------- the pack: download once, verify, keep in Cache Storage ----------
@@ -122,9 +133,20 @@ async function boot(): Promise<API> {
   a.clangCommonArgs = a.clangCommonArgs.filter((arg) => arg !== "-fcolor-diagnostics");
   await a.ready;
   a.memfs.addFile("include/bits/stdc++.h", STDCXX_HEADER);
-  await a.getModule(a.clangFilename);
+  const clang = await a.getModule(a.clangFilename);
   await a.getModule(a.lldFilename);
+  a.memfs.addFile("pocket_run_init.c", INIT_SOURCE);
+  try {
+    await a.run(clang, "clang", "-cc1", "-emit-obj", ...cOnly(a.clangCommonArgs), "-O2", "-std=gnu11", "-o", INIT_OBJECT, "-x", "c", "pocket_run_init.c");
+  } catch {
+    throw new Error("the C/C++ start-up code failed to compile");
+  }
   return a;
+}
+
+/** clang's C++ headers must not be on the C include path (they shadow <math.h> etc.). */
+function cOnly(args: string[]): string[] {
+  return args.filter((arg, i, all) => arg !== "/include/c++/v1" && !(arg === "-internal-isystem" && all[i + 1] === "/include/c++/v1"));
 }
 
 /** Runs clang or wasm-ld in the shared memfs; false when the tool exits non-zero. */
@@ -196,10 +218,7 @@ async function compile(lang: CLang, code: string) {
   const isC = lang === "c";
   const src = isC ? "main.c" : "main.cpp";
   api!.memfs.addFile(src, code);
-  // clang's C++ headers must not be on the C include path (they shadow <math.h> etc.).
-  const common = isC
-    ? api!.clangCommonArgs.filter((arg, i, all) => arg !== "/include/c++/v1" && !(arg === "-internal-isystem" && all[i + 1] === "/include/c++/v1"))
-    : api!.clangCommonArgs;
+  const common = isC ? cOnly(api!.clangCommonArgs) : api!.clangCommonArgs;
   const clang = await api!.getModule(api!.clangFilename);
   const lld = await api!.getModule(api!.lldFilename);
 
@@ -222,7 +241,7 @@ async function compile(lang: CLang, code: string) {
   diagnostics = "";
   const linked = await tool(lld, "wasm-ld", "--no-threads", "-z", "stack-size=1048576",
     // Programs may use at most 256 MB, so a memory bomb cannot take down the phone's browser.
-    "--max-memory=268435456", "-Llib/wasm32-wasi", "lib/wasm32-wasi/crt1.o", "main.o",
+    "--max-memory=268435456", "-Llib/wasm32-wasi", "lib/wasm32-wasi/crt1.o", INIT_OBJECT, "main.o",
     "-lc", "-lc++", "-lc++abi",
     // compiler-rt: 128-bit long double helpers (__lttf2 …) that libc++ needs.
     "lib/clang/8.0.1/lib/wasi/libclang_rt.builtins-wasm32.a", "-o", "main.wasm");

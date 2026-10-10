@@ -2,6 +2,7 @@
 // Runs one compiled C/C++ program (a WASI module) and exits. The main thread
 // terminate()s this worker on a timeout; replacing it costs only this small file.
 import type { FromProgram, ToProgram } from "../runner/clang-protocol";
+import { waitForInput } from "../runner/input-channel";
 
 declare const self: DedicatedWorkerGlobalScope;
 const post = (msg: FromProgram) => self.postMessage(msg);
@@ -33,8 +34,12 @@ function describeCrash(e: unknown): string {
 
 self.onmessage = async ({ data }: MessageEvent<ToProgram>) => {
   const t0 = performance.now();
-  const stdin = new TextEncoder().encode(data.stdin);
+  // The Input box first (a last line typed without Enter is still a whole line); after that,
+  // ask the student live, until they end input.
+  let stdin: Uint8Array = new TextEncoder().encode(data.stdin && !data.stdin.endsWith("\n") ? data.stdin + "\n" : data.stdin);
   let stdinPos = 0;
+  let inputEnded = !data.input;
+  let waitedMs = 0;
   let written = 0;
   let truncated = false;
   let memory!: WebAssembly.Memory;
@@ -97,6 +102,13 @@ self.onmessage = async ({ data }: MessageEvent<ToProgram>) => {
     },
     fd_read(fd: number, iovs: number, iovsLen: number, nread: number) {
       if (fd !== 0) return EBADF;
+      if (stdinPos >= stdin.length && !inputEnded) {
+        flush(); // the prompt must be on screen before we wait
+        const t = performance.now();
+        const line = waitForInput(data.input!, () => post({ type: "input-request" }));
+        waitedMs += performance.now() - t;
+        if (line) { stdin = line; stdinPos = 0; } else inputEnded = true;
+      }
       const dv = view();
       let total = 0;
       for (let i = 0; i < iovsLen; i++) {
@@ -156,5 +168,5 @@ self.onmessage = async ({ data }: MessageEvent<ToProgram>) => {
     else { exitCode = -1; crash = describeCrash(e); }
   }
   flush();
-  post({ type: "done", exitCode, crash, truncated, ms: performance.now() - t0 });
+  post({ type: "done", exitCode, crash, truncated, ms: performance.now() - t0 - waitedMs });
 };

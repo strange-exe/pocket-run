@@ -32,6 +32,7 @@
             <button type="button" class="tool" id="open-btn">Open</button>
             <button type="button" class="tool" id="save-btn">Save</button>
             <button type="button" class="tool" id="new-btn">New</button>
+            <button type="button" class="tool" id="share-btn">Share</button>
           </div>
           <input type="file" id="file-input" hidden />
         </div>
@@ -40,10 +41,10 @@
 
         <section class="io">
           <details class="stdin" id="stdin-box">
-            <summary>Input <span class="hint">what input() / scanf / cin will read</span></summary>
+            <summary>Input <span class="hint">optional, given to the program first</span></summary>
             <label class="visually-hidden" for="stdin">Program input</label>
             <textarea id="stdin" rows="4" spellcheck="false" autocapitalize="off"
-              placeholder="One value per line, typed before you press Run"></textarea>
+              placeholder="Optional: values to give the program up front, one per line"></textarea>
           </details>
 
           <section class="printout" aria-labelledby="printout-title">
@@ -55,11 +56,21 @@
             </div>
             <p class="receipt" id="receipt">Output appears here.</p>
             <pre class="output" id="output" tabindex="0" aria-live="polite"></pre>
+            <form class="live-input" id="live-input" hidden>
+              <label class="live-label" for="live-input-field">The program is waiting for input</label>
+              <div class="live-row">
+                <input id="live-input-field" type="text" autocomplete="off" autocapitalize="off" autocorrect="off"
+                  spellcheck="false" enterkeyhint="send" />
+                <button type="submit" class="tool">Send</button>
+                <button type="button" class="tool" id="live-input-end" title="End of input (Ctrl+D)">End input</button>
+              </div>
+            </form>
           </section>
         </section>
 
         <div class="run-dock">
-          <p class="notice" id="notice" role="alert"></p>
+          <div class="symbol-bar" id="symbol-bar" role="toolbar" aria-label="Insert symbols" hidden></div>
+          <p class="notice" id="notice" role="alert"><span id="notice-text"></span> <button type="button" class="notice-action" id="notice-action" hidden></button></p>
           <button type="button" class="run" id="run-btn"><span id="run-label">Run</span><kbd class="shortcut">Ctrl ↵</kbd></button>
         </div>
       </main>
