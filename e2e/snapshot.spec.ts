@@ -19,8 +19,8 @@ test("the second start restores Python from the device's snapshot", async ({ pag
   await expect(page.locator("#status-dot")).toHaveAttribute("data-boot", "snapshot");
 
   // A restored interpreter must behave exactly like a fresh one, interrupts included.
-  const r = await run(page, "main.py", "import math\nname = input()\nprint(math.factorial(5), name)", "Asha\n");
-  expect(r.output).toBe("120 Asha\n");
+  const r = await run(page, "main.py", "import math\nname = input()\nprint(math.factorial(5), name)", "Abhinesh\n");
+  expect(r.output).toBe("120 Abhinesh\n");
   const loop = await run(page, "main.py", "while True:\n    pass");
   expect(loop.status).toBe("timeout");
   expect((await run(page, "main.py", 'print("after")')).output).toBe("after\n");

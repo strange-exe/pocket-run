@@ -22,7 +22,7 @@ test("a share link opens the file, file name and input in a new browser, without
   const code = 'name = input()\nprint("hi", name, "✓")\n';
   await openFile(page, "greet.py", code);
   await showInput(page);
-  await page.locator("#stdin").fill("Asha\n");
+  await page.locator("#stdin").fill("Abhinesh\n");
   const url = await shareCurrentFile(page);
   expect(url).toMatch(/#s=[\w-]+$/);
 
@@ -37,7 +37,7 @@ test("a share link opens the file, file name and input in a new browser, without
   await other.goto(url);
   await expect(other.locator("#filename")).toHaveValue("greet.py");
   await expect(other.locator(".cm-content")).toContainText('print("hi", name, "✓")');
-  await expect(other.locator("#stdin")).toHaveValue("Asha\n");
+  await expect(other.locator("#stdin")).toHaveValue("Abhinesh\n");
   await expect(other.locator("#notice")).toContainText("hasn't been run");
   await expect(other.locator("#output")).toHaveText(""); // nothing ran
   expect(new URL(other.url()).hash).toBe(""); // a reload won't re-import it

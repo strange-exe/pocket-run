@@ -4,8 +4,8 @@ import { mkdir } from "node:fs/promises";
 import { chromium } from "@playwright/test";
 
 const sheet = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <path d="M8 5h12l5 5v17H8z" fill="#FBFAF6" stroke="#1D1B16" stroke-width="2.2" stroke-linejoin="round"/>
-  <path d="M14 13l6.5 4-6.5 4z" fill="#C2410C"/></svg>`;
+  <path d="M8 5h12l5 5v17H8z" fill="#171C24" stroke="#E4E8EE" stroke-width="2.2" stroke-linejoin="round"/>
+  <path d="M14 13l6.5 4-6.5 4z" fill="#3ECF8E"/></svg>`;
 
 // "maskable" icons get cropped to a circle or squircle, so the mark must sit inside the central 80%.
 const icons = [
@@ -20,7 +20,7 @@ const page = await browser.newPage();
 for (const { file, size, scale } of icons) {
   const inner = Math.round(size * scale);
   await page.setViewportSize({ width: size, height: size });
-  await page.setContent(`<body style="margin:0;width:${size}px;height:${size}px;display:grid;place-items:center;background:#F4F1EA">
+  await page.setContent(`<body style="margin:0;width:${size}px;height:${size}px;display:grid;place-items:center;background:#12161D">
     <div style="width:${inner}px;height:${inner}px">${sheet.replace("<svg ", `<svg width="${inner}" height="${inner}" `)}</div></body>`);
   await page.screenshot({ path: `public/icons/${file}` });
   console.log(`public/icons/${file}`);

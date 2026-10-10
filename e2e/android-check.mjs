@@ -123,7 +123,7 @@ if (mode === "online") {
   }
   await page.screenshot({ path: `${shots}/ran-cpp.png` });
 
-  await runProgram("main.py", 'name = input("Your name: ")\nprint(f"Hello, {name}!")\nprint(undefined_name)', "Asha\n");
+  await runProgram("main.py", 'name = input("Your name: ")\nprint(f"Hello, {name}!")\nprint(undefined_name)', "Abhinesh\n");
   await page.screenshot({ path: `${shots}/ran.png`, fullPage: true });
 
   const bootInfo = () => page.evaluate(() => {

@@ -44,10 +44,10 @@ test.describe("Python", () => {
     await asked(page);
     await expect(page.locator("#output")).toHaveText("Your name: "); // the prompt is visible before typing
     await expect(page.locator("#receipt")).toContainText("waiting for your input");
-    await answer(page, "Asha");
+    await answer(page, "Abhinesh");
     const r = await finished(page);
     expect(r.status).toBe("ok");
-    expect(r.output).toBe("Your name: Asha\nHello, Asha!\n");
+    expect(r.output).toBe("Your name: Abhinesh\nHello, Abhinesh!\n");
     await expect(page.locator("#live-input")).toBeHidden();
   });
 

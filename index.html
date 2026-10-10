@@ -4,8 +4,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="description" content="Run Python, C and C++ files on your phone, even with no internet." />
-    <meta name="theme-color" content="#F4F1EA" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#14130F" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#EEF1F5" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0B0E13" media="(prefers-color-scheme: dark)" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/icons/icon-192.png" />
     <title>Pocket Run</title>
@@ -22,56 +22,66 @@
       </header>
 
       <main class="bench">
-        <div class="filebar">
-          <label class="filename">
-            <span class="visually-hidden">File name</span>
-            <input id="filename" type="text" spellcheck="false" autocomplete="off" autocapitalize="off" />
-          </label>
-          <span class="lang-tag" id="lang-tag"></span>
-          <div class="file-actions">
-            <button type="button" class="tool" id="open-btn">Open</button>
-            <button type="button" class="tool" id="save-btn">Save</button>
-            <button type="button" class="tool" id="new-btn">New</button>
-            <button type="button" class="tool" id="share-btn">Share</button>
+        <div class="editor-panel">
+          <div class="filebar">
+            <div class="file-id">
+              <label class="filename">
+                <span class="visually-hidden">File name</span>
+                <input id="filename" type="text" spellcheck="false" autocomplete="off" autocapitalize="off" />
+              </label>
+              <span class="lang-tag" id="lang-tag"></span>
+            </div>
+            <div class="file-actions">
+              <button type="button" class="tool" id="open-btn"><i data-icon="folder-open"></i><span>Open</span></button>
+              <button type="button" class="tool" id="save-btn"><i data-icon="download-simple"></i><span>Save</span></button>
+              <button type="button" class="tool" id="new-btn"><i data-icon="file-plus"></i><span>New</span></button>
+              <button type="button" class="tool" id="share-btn"><i data-icon="share-network"></i><span>Share</span></button>
+            </div>
+            <input type="file" id="file-input" hidden />
           </div>
-          <input type="file" id="file-input" hidden />
+          <section class="editor-pane" id="editor" aria-label="Code"></section>
         </div>
 
-        <section class="editor-pane" id="editor" aria-label="Code"></section>
-
         <section class="io">
-          <details class="stdin" id="stdin-box">
-            <summary>Input <span class="hint">optional, given to the program first</span></summary>
+          <details class="stdin panel" id="stdin-box">
+            <summary class="panel-head">Input <span class="hint">optional, given to the program first</span></summary>
             <label class="visually-hidden" for="stdin">Program input</label>
             <textarea id="stdin" rows="4" spellcheck="false" autocapitalize="off"
-              placeholder="Optional: values to give the program up front, one per line"></textarea>
+              placeholder="Values to give the program up front, one per line"></textarea>
           </details>
 
-          <section class="printout" aria-labelledby="printout-title">
-            <h2 class="visually-hidden" id="printout-title">Output</h2>
-            <div class="pack-offer" id="pack-offer" hidden>
-              <p class="pack-text" id="pack-text"></p>
-              <progress id="pack-progress" max="1" value="0" hidden></progress>
-              <button type="button" class="tool pack-button" id="pack-button"></button>
+          <section class="printout panel" aria-labelledby="printout-title">
+            <div class="panel-head">
+              <h2 id="printout-title"><i data-icon="terminal-window"></i>Output</h2>
+              <p class="receipt" id="receipt">Run your code to see its output.</p>
             </div>
-            <p class="receipt" id="receipt">Output appears here.</p>
-            <pre class="output" id="output" tabindex="0" aria-live="polite"></pre>
-            <form class="live-input" id="live-input" hidden>
-              <label class="live-label" for="live-input-field">The program is waiting for input</label>
-              <div class="live-row">
-                <input id="live-input-field" type="text" autocomplete="off" autocapitalize="off" autocorrect="off"
-                  spellcheck="false" enterkeyhint="send" />
-                <button type="submit" class="tool">Send</button>
-                <button type="button" class="tool" id="live-input-end" title="End of input (Ctrl+D)">End input</button>
+            <div class="printout-body">
+              <div class="pack-offer" id="pack-offer" hidden>
+                <p class="pack-text" id="pack-text"></p>
+                <progress id="pack-progress" max="1" value="0" hidden></progress>
+                <button type="button" class="tool pack-button" id="pack-button"></button>
               </div>
-            </form>
+              <pre class="output" id="output" tabindex="0" aria-live="polite"></pre>
+              <form class="live-input" id="live-input" hidden>
+                <label class="live-label" for="live-input-field">The program is waiting for input</label>
+                <div class="live-row">
+                  <input id="live-input-field" type="text" autocomplete="off" autocapitalize="off" autocorrect="off"
+                    spellcheck="false" enterkeyhint="send" />
+                  <button type="submit" class="tool send"><i data-icon="paper-plane-right"></i><span>Send</span></button>
+                  <button type="button" class="tool" id="live-input-end" title="End of input (Ctrl+D)">End input</button>
+                </div>
+              </form>
+            </div>
           </section>
         </section>
 
         <div class="run-dock">
           <div class="symbol-bar" id="symbol-bar" role="toolbar" aria-label="Insert symbols" hidden></div>
           <p class="notice" id="notice" role="alert"><span id="notice-text"></span> <button type="button" class="notice-action" id="notice-action" hidden></button></p>
-          <button type="button" class="run" id="run-btn"><span id="run-label">Run</span><kbd class="shortcut">Ctrl ↵</kbd></button>
+          <button type="button" class="run" id="run-btn">
+            <span class="run-icon"><i data-icon="play:fill"></i><i data-icon="stop:fill"></i></span>
+            <span id="run-label">Run</span><kbd class="shortcut">Ctrl ↵</kbd>
+          </button>
         </div>
       </main>
     </div>

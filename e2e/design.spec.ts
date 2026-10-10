@@ -22,7 +22,7 @@ for (const vp of viewports) {
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 
       await page.screenshot({ path: `${dir}/home-${vp.name}-${scheme}.png`, animations: "disabled" });
-      await run(page, "main.py", 'name = input("Your name: ")\nprint(f"Hello, {name}!")\nprint(undefined_name)', "Asha\n");
+      await run(page, "main.py", 'name = input("Your name: ")\nprint(f"Hello, {name}!")\nprint(undefined_name)', "Abhinesh\n");
       await page.screenshot({ path: `${dir}/ran-${vp.name}-${scheme}.png`, fullPage: true, animations: "disabled" });
     });
   }
@@ -71,7 +71,7 @@ test("touch targets are at least 44 px", async ({ page }) => {
 test("the editor shows a visible focus ring", async ({ page }) => {
   await openApp(page);
   await page.locator(".cm-content").focus();
-  const outline = await page.locator(".editor-pane").evaluate((el) => getComputedStyle(el).outlineStyle);
+  const outline = await page.locator(".editor-panel").evaluate((el) => getComputedStyle(el).outlineStyle);
   expect(outline).toBe("solid");
 });
 
@@ -79,7 +79,7 @@ test("reduced motion disables the printout animation", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await openApp(page);
   await run(page, "main.py", 'print("hi")');
-  const anim = await page.locator(".printout").evaluate((el) => getComputedStyle(el).animationName);
+  const anim = await page.locator(".printout-body").evaluate((el) => getComputedStyle(el).animationName);
   expect(anim).toBe("none");
 });
 

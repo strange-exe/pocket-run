@@ -1,5 +1,5 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { defineConfig } from "vite";
+import { defineConfig, type Plugin } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 
 const pyodideVersion: string = JSON.parse(readFileSync("node_modules/pyodide/package.json", "utf8")).version;
@@ -14,6 +14,24 @@ function clangPack(mode: string) {
   if (dir) return JSON.parse(readFileSync(`public/clang/${dir}/manifest.json`, "utf8"));
   if (mode === "test") return { version: "test", source: "none", totalBytes: 0, files: {} };
   throw new Error("The C/C++ pack is missing: run `node scripts/fetch-clang.mjs` (npm run dev/build do this).");
+}
+
+/**
+ * Inlines Phosphor icons into index.html at build time: `<i data-icon="play:fill"></i>` becomes that SVG.
+ * No icon font or runtime script, so icons cost a few hundred bytes and work offline.
+ */
+function inlineIcons(): Plugin {
+  const dir = "node_modules/@phosphor-icons/core/assets";
+  return {
+    name: "pocket-run:inline-icons",
+    transformIndexHtml: (html) =>
+      html.replace(/<i data-icon="([a-z-]+)(?::([a-z]+))?"><\/i>/g, (_, name: string, weight = "regular") => {
+        const file = weight === "regular" ? `${dir}/regular/${name}.svg` : `${dir}/${weight}/${name}-${weight}.svg`;
+        return readFileSync(file, "utf8")
+          .trim()
+          .replace("<svg ", `<svg class="icon icon-${name}" aria-hidden="true" focusable="false" `);
+      }),
+  };
 }
 
 // Cross-origin isolation enables SharedArrayBuffer, which lets us interrupt a
@@ -32,14 +50,15 @@ export default defineConfig(({ mode }) => ({
     __CLANG_PACK__: JSON.stringify(clangPack(mode)),
   },
   plugins: [
+    inlineIcons(),
     VitePWA({
       registerType: "autoUpdate",
       manifest: {
         name: "Pocket Run",
         short_name: "Pocket Run",
         description: "Run Python, C and C++ files on your phone, even offline.",
-        theme_color: "#F4F1EA",
-        background_color: "#F4F1EA",
+        theme_color: "#0B0E13",
+        background_color: "#0B0E13",
         display: "standalone",
         start_url: "/",
         icons: [

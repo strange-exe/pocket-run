@@ -34,7 +34,7 @@ const packButton = $<HTMLButtonElement>("pack-button");
 
 // ---------- state ----------
 const python = languageById("python");
-const ownDraft = loadDraft() ?? { filename: python.defaultFilename, code: python.sample, stdin: "Asha\n" };
+const ownDraft = loadDraft() ?? { filename: python.defaultFilename, code: python.sample, stdin: "Abhinesh\n" };
 // A share link (#s=…) opens its file in the editor; the student's own file is kept aside.
 const shared = await readShareHash(location.hash);
 if (location.hash) history.replaceState(null, "", location.pathname + location.search);
@@ -296,7 +296,7 @@ async function onRun() {
   if (isCompiled(lang)) {
     if (cpp.state === "absent" || cpp.state === "checking") {
       renderStatus();
-      showNotice("Download the C/C++ compiler first (once). It's on the printout below.");
+      showNotice("Download the C/C++ compiler first (once). The button is in Output.");
       // Bring the whole offer above the fixed Run bar, then focus without the browser's minimal scroll.
       // The notice just made the bar taller; measure it now (ResizeObserver reports only after layout).
       syncDockHeight();
@@ -371,7 +371,7 @@ async function onRun() {
     runBtn.removeAttribute("data-running");
     runLabel.textContent = "Run";
     printout.classList.remove("fresh");
-    void printout.offsetWidth; // restart the slip animation
+    void printout.offsetWidth; // restart the arrive animation
     printout.classList.add("fresh");
     // Phones: bring the receipt and the first lines of output to the top of the screen.
     if (matchMedia("(max-width: 899px)").matches) {
@@ -429,16 +429,18 @@ const formatMs = (ms: number) => (ms < 1000 ? `${Math.round(ms)} ms` : `${(ms / 
 
 function renderReceipt(r: RunResult, label: string) {
   const head: Record<RunResult["status"], string> = {
-    ok: "✓ finished",
-    error: r.crash ? "✗ crashed" : `✗ error · exit ${r.exitCode}`,
-    "compile-error": "✗ didn't compile",
-    timeout: r.stage === "compile" ? "⏱ stopped: compiling took too long" : `⏱ stopped: still running after ${RUN_TIMEOUT_MS / 1000} s`,
-    stopped: "■ stopped by you",
-    "output-limit": `✂ stopped: output passed ${OUTPUT_CAP / 1024} KB`,
+    ok: "finished",
+    error: r.crash ? "crashed" : `exit ${r.exitCode}`,
+    "compile-error": "didn't compile",
+    timeout: r.stage === "compile" ? "stopped: compiling took too long" : `stopped: still running after ${RUN_TIMEOUT_MS / 1000} s`,
+    stopped: "stopped by you",
+    "output-limit": `stopped: output passed ${OUTPUT_CAP / 1024} KB`,
   };
   receipt.dataset.status = r.status;
   const strong = document.createElement("strong");
   strong.textContent = head[r.status];
-  const compile = r.compileMs !== undefined && r.status !== "compile-error" ? ` · compiled in ${formatMs(r.compileMs)}` : "";
-  receipt.replaceChildren(strong, ` · ${formatMs(r.ms)}${compile} · ${label}`);
+  const facts = [formatMs(r.ms), label];
+  if (r.compileMs !== undefined && r.status !== "compile-error") facts.splice(1, 0, `compiled in ${formatMs(r.compileMs)}`);
+  // Separate spans (spaced by CSS) instead of a run of " · " separators.
+  receipt.replaceChildren(strong, ...facts.map((text) => Object.assign(document.createElement("span"), { textContent: ` ${text}` })));
 }

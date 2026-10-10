@@ -17,7 +17,7 @@ works offline and a runaway program can only ever affect its own browser tab.
 
 1. **Open** a `.py`, `.c` or `.cpp` file from your device, or type in the editor. The language comes from the file
    extension (`.py`, `.c`, `.cpp` / `.cc` / `.cxx`).
-2. Press **Run** (or <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Enter</kbd>). Output appears on the printout below.
+2. Press **Run** (or <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Enter</kbd>). Output appears in the Output panel.
    The first time you run C or C++, Pocket Run offers the one-time compiler download.
 3. When the program reads input (`input()`, `scanf`, `cin`), Pocket Run asks for it while the program runs, like a
    terminal. **End input** (or <kbd>Ctrl</kbd> + <kbd>D</kbd>) sends end-of-file. You can also put values in the
@@ -125,4 +125,5 @@ MIT. See [LICENSE](LICENSE).
   vendored from it (turned into an ES module; see the note at the end of the file and `src/vendor/wasm-clang/LICENSE`).
 - LLVM / clang / lld binaries: Apache License 2.0 with LLVM Exceptions, plus the University of Illinois/NCSA licence
   for code from before LLVM's relicensing. Both texts ship with the pack as `LICENSE.llvm.txt`.
-- Fonts: Bricolage Grotesque and JetBrains Mono (SIL Open Font License 1.1).
+- Fonts: Geist and JetBrains Mono (SIL Open Font License 1.1).
+- Icons: Phosphor Icons (MIT).
