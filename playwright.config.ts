@@ -7,7 +7,9 @@ export default defineConfig({
   timeout: 45_000,
   fullyParallel: false,
   workers: 1,
-  reporter: [["list"]],
+  // On CI, failures also become GitHub annotations: readable on the run page and through the public
+  // API without signing in to view the full log.
+  reporter: process.env.CI ? [["github"], ["list"]] : [["list"]],
   use: { baseURL: `http://localhost:${PORT}` },
   // The same suite in all three engines. WebKit is the engine inside Safari; Playwright's build
   // is closest to real Safari on macOS, so a Mac (or an iPhone) is still the final check.
