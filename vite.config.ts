@@ -1,12 +1,20 @@
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 
 const pyodideVersion: string = JSON.parse(readFileSync("node_modules/pyodide/package.json", "utf8")).version;
 
-// Written by scripts/fetch-clang.mjs (runs before dev and build).
-const clangDir = readdirSync("public/clang")[0];
-const clangPack = JSON.parse(readFileSync(`public/clang/${clangDir}/manifest.json`, "utf8"));
+/**
+ * The C/C++ pack manifest, written by scripts/fetch-clang.mjs (npm's predev/prebuild run it).
+ * Unit tests (Vitest, mode "test") never touch the pack, so they get a placeholder instead of
+ * requiring a 20 MB download first. Dev and build fail with a clear message if it's missing.
+ */
+function clangPack(mode: string) {
+  const dir = existsSync("public/clang") ? readdirSync("public/clang")[0] : undefined;
+  if (dir) return JSON.parse(readFileSync(`public/clang/${dir}/manifest.json`, "utf8"));
+  if (mode === "test") return { version: "test", source: "none", totalBytes: 0, files: {} };
+  throw new Error("The C/C++ pack is missing: run `node scripts/fetch-clang.mjs` (npm run dev/build do this).");
+}
 
 // Cross-origin isolation enables SharedArrayBuffer, which lets us interrupt a
 // running Python program instead of killing (and re-booting) the whole runtime.
@@ -15,13 +23,13 @@ const isolation = {
   "Cross-Origin-Embedder-Policy": "require-corp",
 };
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   server: { headers: isolation },
   preview: { headers: isolation },
   worker: { format: "es" },
   define: {
     __PYODIDE_VERSION__: JSON.stringify(pyodideVersion),
-    __CLANG_PACK__: JSON.stringify(clangPack),
+    __CLANG_PACK__: JSON.stringify(clangPack(mode)),
   },
   plugins: [
     VitePWA({
@@ -53,4 +61,4 @@ export default defineConfig({
       },
     }),
   ],
-});
+}));
