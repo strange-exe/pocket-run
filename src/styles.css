@@ -17,35 +17,38 @@
 }
 
 :root {
-  color-scheme: light dark;
+  color-scheme: light;
   --font-ui: "Geist", ui-sans-serif, system-ui, sans-serif;
   --font-code: "JetBrains Mono", ui-monospace, monospace;
 
+  /* Base colours: Pocket Run Light. Other themes override these (src/themes.ts); keep the two in sync. */
   --paper: #eef1f5;   /* app background */
   --sheet: #fbfcfd;   /* editor and panels */
   --bar: #f4f6f9;     /* panel header strips, Run dock */
   --ink: #131922;
   --muted: #5a6475;
   --rule: #dde2e9;    /* hairlines */
-  --edge: #c9d0da;    /* button borders */
-  --field: #848e9d;   /* text-field borders (3:1 against --sheet) */
-  --hover: rgb(19 25 34 / 0.05);
   --accent: #0a7d55;
-  --accent-hover: #086a48;
   --on-accent: #ffffff;
-  --accent-soft: rgb(10 125 85 / 0.1);
-  --accent-ink: #076646; /* accent text on --accent-soft */
   --ok: #0a7d55;
   --err: #c42b2b;
-  --err-soft: rgb(196 43 43 / 0.09);
   --warn: #8f5600;
-  --active-line: rgb(19 25 34 / 0.035);
-  --selection: rgb(10 125 85 / 0.18);
   --syn-keyword: #a8326e;
   --syn-string: #8f5600;
   --syn-number: #1d63c7;
-  --syn-comment: #6b7584;
+  --syn-comment: #667080;
   --syn-def: #0b7489;
+
+  /* Derived from the base colours, so every theme gets them. */
+  --edge: color-mix(in srgb, var(--ink) 18%, var(--sheet));    /* button borders */
+  --field: color-mix(in srgb, var(--muted) 85%, var(--sheet)); /* text-field borders, 3:1 or more */
+  --hover: color-mix(in srgb, var(--ink) 6%, transparent);
+  --accent-hover: color-mix(in srgb, var(--accent) 84%, var(--ink));
+  --accent-soft: color-mix(in srgb, var(--accent) 12%, transparent);
+  --accent-ink: color-mix(in srgb, var(--accent) 78%, var(--ink)); /* accent text on --accent-soft */
+  --err-soft: color-mix(in srgb, var(--err) 10%, transparent);
+  --active-line: color-mix(in srgb, var(--ink) 4%, transparent);
+  --selection: color-mix(in srgb, var(--accent) 22%, transparent);
 
   --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px;
   --code-size: 16px; /* 16px stops iOS zooming into the editor on focus */
@@ -53,34 +56,25 @@
   --radius-panel: 10px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --paper: #0b0e13;
-    --sheet: #12161d;
-    --bar: #171c24;
-    --ink: #e4e8ee;
-    --muted: #95a0b0;
-    --rule: #232a35;
-    --edge: #343d4b;
-    --field: #5f6b7c;
-    --hover: rgb(228 232 238 / 0.06);
-    --accent: #3ecf8e;
-    --accent-hover: #5bd9a0;
-    --on-accent: #052116;
-    --accent-soft: rgb(62 207 142 / 0.12);
-    --accent-ink: #3ecf8e;
-    --ok: #3ecf8e;
-    --err: #ff7b72;
-    --err-soft: rgb(255 123 114 / 0.1);
-    --warn: #e7b86e;
-    --active-line: rgb(228 232 238 / 0.04);
-    --selection: rgb(62 207 142 / 0.22);
-    --syn-keyword: #ee8fcb;
-    --syn-string: #e7b86e;
-    --syn-number: #79b8ff;
-    --syn-comment: #7b8697;
-    --syn-def: #56d0e0;
-  }
+/* data-theme is set before first paint by the start-up script in index.html. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --paper: #0b0e13;
+  --sheet: #12161d;
+  --bar: #171c24;
+  --ink: #e4e8ee;
+  --muted: #95a0b0;
+  --rule: #232a35;
+  --accent: #3ecf8e;
+  --on-accent: #052116;
+  --ok: #3ecf8e;
+  --err: #ff7b72;
+  --warn: #e7b86e;
+  --syn-keyword: #ee8fcb;
+  --syn-string: #e7b86e;
+  --syn-number: #79b8ff;
+  --syn-comment: #7b8697;
+  --syn-def: #56d0e0;
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -148,12 +142,34 @@ button, input, textarea { font: inherit; color: inherit; }
 }
 
 /* Runtime state: a real status indicator, so the dot carries meaning. */
-.status {
+.masthead-end {
   grid-area: status;
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  justify-self: end;
+  min-width: 0;
+}
+.icon-btn {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  margin: -6px -8px -6px 0; /* full touch target without making the header taller */
+  border: 0;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--muted);
+  font-size: 1.125rem;
+  cursor: pointer;
+}
+.icon-btn:hover { background: var(--hover); color: var(--ink); }
+
+.status {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  justify-self: end;
   min-width: 0;
   margin: 0;
   padding: 3px 10px 3px 8px;
@@ -539,6 +555,55 @@ button, input, textarea { font: inherit; color: inherit; }
 }
 .choices button span { font-family: var(--font-code); color: var(--muted); font-weight: 400; }
 .choices button:hover { border-color: var(--accent); background: var(--accent-soft); }
+
+/* ---------- theme picker ---------- */
+.theme-dialog { width: min(30rem, calc(100vw - 32px)); max-height: calc(100dvh - 32px); }
+.theme-dialog form { display: flex; flex-direction: column; max-height: calc(100dvh - 32px - 2 * var(--s5)); }
+.theme-list { display: grid; gap: 2px; margin: 0 calc(-1 * var(--s2)) var(--s3); padding: 0 var(--s2); overflow-y: auto; }
+.theme-group {
+  margin: var(--s3) 0 var(--s1);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+.theme-group:first-child { margin-top: 0; }
+.theme-option {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  min-height: 44px;
+  padding: 0 var(--s2);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+.theme-option:hover { background: var(--hover); }
+.theme-option:has(input:checked) { background: var(--accent-soft); }
+.theme-option input { margin: 0; accent-color: var(--accent); width: 18px; height: 18px; flex: none; }
+.swatches {
+  display: flex;
+  flex: none;
+  overflow: hidden;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+}
+.swatches span { width: 14px; height: 22px; }
+.theme-name { flex: 1; min-width: 0; font-weight: 500; }
+.theme-delete {
+  min-height: 36px;
+  padding: 0 var(--s2);
+  border: 0;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--err);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.theme-delete:hover { background: var(--err-soft); }
+.theme-actions { display: flex; flex-wrap: wrap; gap: var(--s2); }
+.theme-message { min-height: 1.5em; margin: var(--s2) 0 var(--s3); font-size: 0.8125rem; color: var(--muted); }
+.theme-message[data-tone="error"] { color: var(--err); }
+.theme-dialog form > .tool { align-self: flex-end; }
 
 /* ---------- desktop: editor left, Run + input + output right ---------- */
 @media (min-width: 900px) {

@@ -107,8 +107,14 @@ test("Stop works while Python is still starting", async ({ page }) => {
 
 test.describe(() => {
   // Leaving a page mid-start cancels the abandoned page's Pyodide downloads; WebKit then reports
-  // the loader's cancelled fetches. That noise belongs to the old page, not the new one.
-  test.use({ tolerate: [/^Unhandled Promise Rejection: TypeError: Load failed$/] });
+  // the loader's cancelled fetches. That noise belongs to the old page, not the new one. Firefox's
+  // equivalent comes from Playwright's own instrumentation (juggler), not from the app.
+  test.use({
+    tolerate: [
+      /^Unhandled Promise Rejection: TypeError: Load failed$/,
+      /^\[JavaScript Error: "NS_BINDING_ABORTED: " \{file: "chrome:\/\/juggler\/content\/content\/WorkerMain\.js" line: \d+\}\]$/,
+    ],
+  });
 
   test("reloading while Python is still starting doesn't break it", async ({ page }) => {
     // WebKit blocks the first workers after a reload; the runtimes must retry, not fail.

@@ -1,7 +1,15 @@
 import "./styles.css";
 import { registerSW } from "virtual:pwa-register";
 import { loadDraft, PREVIOUS_KEY, saveDraft } from "./draft";
-import { makeShareUrl, readShareHash } from "./share";
+import { makeShareUrl, readShareHash, shareProblem } from "./share";
+import { HIDDEN, removeHidden } from "./safety";
+import { applyTheme, chosenTheme, followDevice } from "./themes";
+import { setupThemePicker } from "./theme-picker";
+
+// The start-up script in index.html already painted the saved theme; this re-applies it with
+// full validation and keeps "match device" in step with the system setting.
+applyTheme(chosenTheme());
+followDevice();
 import { setupSymbolBar } from "./symbol-bar";
 import { createEditor } from "./editor";
 import { downloadFile, readCodeFile, sanitizeFilename } from "./files";
@@ -27,6 +35,7 @@ const runLabel = $("run-label");
 const statusDot = $("status-dot");
 const statusText = $("status-text");
 const newDialog = $<HTMLDialogElement>("new-dialog");
+setupThemePicker($<HTMLButtonElement>("theme-btn"), $<HTMLDialogElement>("theme-dialog"));
 const packOffer = $("pack-offer");
 const packText = $("pack-text");
 const packProgress = $<HTMLProgressElement>("pack-progress");
@@ -36,9 +45,10 @@ const packButton = $<HTMLButtonElement>("pack-button");
 const python = languageById("python");
 const ownDraft = loadDraft() ?? { filename: python.defaultFilename, code: python.sample, stdin: "Abhinesh\n" };
 // A share link (#s=…) opens its file in the editor; the student's own file is kept aside.
-const shared = await readShareHash(location.hash);
+const received = await readShareHash(location.hash);
 if (location.hash) history.replaceState(null, "", location.pathname + location.search);
-const draft = shared ? { ...shared, filename: sanitizeFilename(shared.filename) } : ownDraft;
+const shared = received?.ok ? received.draft : null;
+const draft = shared ?? ownDraft;
 if (shared) {
   saveDraft(ownDraft, PREVIOUS_KEY);
   saveDraft(draft);
@@ -220,17 +230,35 @@ function announceShared(filename: string) {
     },
   });
 }
+const announceBlocked = (reason: string) =>
+  showNotice(`A shared link was blocked because ${reason}. Nothing was opened or run, and your file is unchanged.`);
 if (shared) announceShared(draft.filename);
+else if (received && !received.ok) announceBlocked(received.blocked);
 
 // A link pasted into a tab where Pocket Run is already open only changes the fragment (no reload).
 window.addEventListener("hashchange", async () => {
   const file = await readShareHash(location.hash);
   history.replaceState(null, "", location.pathname + location.search);
   if (!file || running) return;
+  if (!file.ok) return announceBlocked(file.blocked);
   saveDraft({ filename: filenameInput.value, code: editor.getCode(), stdin: stdinInput.value }, PREVIOUS_KEY);
-  loadFile({ ...file, filename: sanitizeFilename(file.filename) });
+  loadFile(file.draft);
   announceShared(filenameInput.value);
 });
+
+/** Offers to strip invisible characters that could hide what code does. */
+function warnHidden(count: number, before: string) {
+  showNotice(`This file has ${count} invisible character${count === 1 ? "" : "s"} (shown as red dots) that could hide what the code does.`, {
+    action: {
+      label: "Remove them",
+      run: () => {
+        editor.setCode(removeHidden(editor.getCode()));
+        persist();
+        showNotice(`Removed ${count} invisible character${count === 1 ? "" : "s"}${before}.`, { tone: "info" });
+      },
+    },
+  });
+}
 
 // ---------- open / save / new ----------
 $("open-btn").addEventListener("click", () => fileInput.click());
@@ -244,6 +272,7 @@ fileInput.addEventListener("change", async () => {
   editor.setCode(result.text);
   syncLanguage();
   persist();
+  if (result.hidden) warnHidden(result.hidden, "");
 });
 
 $("save-btn").addEventListener("click", () => {
@@ -254,7 +283,15 @@ $("save-btn").addEventListener("click", () => {
 
 $("share-btn").addEventListener("click", async () => {
   const name = sanitizeFilename(filenameInput.value);
-  const url = await makeShareUrl({ filename: name, code: editor.getCode(), stdin: stdinInput.value }, location.href);
+  const file = { filename: name, code: editor.getCode(), stdin: stdinInput.value };
+  if (!detectLanguage(name)) return showNotice("Only Python, C and C++ files (.py, .c, .cpp) can be shared.");
+  const problem = shareProblem(file);
+  if (problem) {
+    const hidden = editor.getCode().match(HIDDEN)?.length ?? 0;
+    if (hidden && !shareProblem({ ...file, code: removeHidden(file.code) })) return warnHidden(hidden, ". Press Share again");
+    return showNotice(problem);
+  }
+  const url = await makeShareUrl(file, location.href);
   if (!url) return showNotice("This file is too long to share as a link. Use Save and send the file instead.");
   // Phones: the system share sheet (WhatsApp, Telegram…). Elsewhere: copy the link.
   if (navigator.share && matchMedia("(pointer: coarse)").matches) {
@@ -321,7 +358,7 @@ async function onRun() {
   let waitingForInput = false;
   const showPhase = () => {
     receipt.textContent = waitingForInput
-      ? "waiting for your input (the time limit is paused)"
+      ? "waiting for input, timer paused" // short: keeps the Output header one line on a phone
       : `${phase}… ${((performance.now() - phaseStarted) / 1000).toFixed(1)} s`;
   };
   const tick = setInterval(showPhase, 100);
@@ -398,8 +435,24 @@ function askForInput(reply: (line: string | null) => void) {
   liveForm.hidden = false;
   liveField.value = "";
   syncDockHeight();
-  liveForm.scrollIntoView({ block: "nearest" });
   liveField.focus({ preventScroll: true });
+  keepAboveDock(liveForm);
+  // Check again once layout has settled (a focus scroll or late reflow can still move it).
+  requestAnimationFrame(() => requestAnimationFrame(() => { if (answer) keepAboveDock(liveForm); }));
+}
+
+/**
+ * Scrolls just enough that `el` sits fully above the fixed Run bar on phones. Measured directly:
+ * WebKit applied the page's scroll-padding to scrollIntoView() only some of the time, leaving the
+ * box 14 px short in about half of the runs.
+ */
+function keepAboveDock(el: HTMLElement) {
+  if (getComputedStyle(dock).position !== "fixed") return el.scrollIntoView({ block: "nearest" });
+  const gap = 12;
+  const box = el.getBoundingClientRect();
+  const limit = dock.getBoundingClientRect().top - gap;
+  if (box.bottom > limit) window.scrollBy(0, box.bottom - limit);
+  else if (box.top < gap) window.scrollBy(0, box.top - gap);
 }
 
 function closeLiveInput() {

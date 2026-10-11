@@ -43,7 +43,7 @@ test.describe("Python", () => {
     await start(page, "main.py", 'name = input("Your name: ")\nprint(f"Hello, {name}!")');
     await asked(page);
     await expect(page.locator("#output")).toHaveText("Your name: "); // the prompt is visible before typing
-    await expect(page.locator("#receipt")).toContainText("waiting for your input");
+    await expect(page.locator("#receipt")).toContainText("waiting for input");
     await answer(page, "Abhinesh");
     const r = await finished(page);
     expect(r.status).toBe("ok");

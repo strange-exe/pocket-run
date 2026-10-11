@@ -9,6 +9,7 @@
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/icons/icon-192.png" />
     <title>Pocket Run</title>
+    <script src="/theme-boot.js"></script>
   </head>
   <body>
     <div class="app">
@@ -18,7 +19,10 @@
           Pocket Run
         </h1>
         <p class="tagline">Run Python, C and C++ files on your phone, even with no internet.</p>
-        <p class="status" role="status"><span class="status-dot" id="status-dot"></span><span id="status-text">Starting Python…</span></p>
+        <div class="masthead-end">
+          <p class="status" role="status"><span class="status-dot" id="status-dot"></span><span id="status-text">Starting Python…</span></p>
+          <button type="button" class="icon-btn" id="theme-btn" aria-label="Colour theme" title="Colour theme"><i data-icon="palette"></i></button>
+        </div>
       </header>
 
       <main class="bench">
@@ -96,6 +100,21 @@
           <button value="cpp">C++ <span>.cpp</span></button>
         </div>
         <button class="tool" value="cancel">Cancel</button>
+      </form>
+    </dialog>
+
+    <dialog class="sheet-dialog theme-dialog" id="theme-dialog" aria-labelledby="theme-title">
+      <form method="dialog">
+        <h2 id="theme-title">Colour theme</h2>
+        <p class="dialog-note">Saved on this device. Every theme is kept readable.</p>
+        <div class="theme-list" id="theme-list" role="radiogroup" aria-labelledby="theme-title"></div>
+        <div class="theme-actions">
+          <button type="button" class="tool" id="theme-load"><i data-icon="upload-simple"></i><span>Load theme file</span></button>
+          <button type="button" class="tool" id="theme-template"><i data-icon="download-simple"></i><span>Get template</span></button>
+          <input type="file" id="theme-file" accept=".json,application/json" hidden />
+        </div>
+        <p class="theme-message" id="theme-message" role="status"></p>
+        <button class="tool" value="close">Done</button>
       </form>
     </dialog>
 

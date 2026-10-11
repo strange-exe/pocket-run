@@ -1,25 +1,23 @@
 import { detectLanguage } from "./languages";
-
-/** One code file; anything bigger is not a "quick snippet" and slows phones down. */
-export const MAX_FILE_BYTES = 512 * 1024;
+import { checkBytes, cleanFilename, MAX_FILE_BYTES } from "./safety";
 
 export type OpenResult =
-  | { ok: true; name: string; text: string }
+  | { ok: true; name: string; text: string; hidden: number }
   | { ok: false; error: string };
 
+/** Opens a code file from the device. Nothing is uploaded: the file is only read in this tab. */
 export async function readCodeFile(file: File): Promise<OpenResult> {
-  if (!detectLanguage(file.name)) {
-    return { ok: false, error: `“${file.name}” isn't a Python, C or C++ file (.py, .c, .cpp).` };
+  const name = cleanFilename(file.name);
+  if (!detectLanguage(name)) {
+    return { ok: false, error: `“${name}” isn't a Python, C or C++ file (.py, .c, .cpp).` };
   }
+  // Check the size before reading, so a huge file is never loaded into memory.
   if (file.size > MAX_FILE_BYTES) {
-    return { ok: false, error: `“${file.name}” is ${Math.round(file.size / 1024)} KB; the limit is ${MAX_FILE_BYTES / 1024} KB.` };
+    return { ok: false, error: `“${name}” is ${Math.round(file.size / 1024)} KB; the limit is ${MAX_FILE_BYTES / 1024} KB.` };
   }
-  const text = await file.text();
-  // A NUL byte means this is a binary file that only looks like source by its name.
-  if (text.includes("\u0000")) {
-    return { ok: false, error: `“${file.name}” looks like a binary file, not source code.` };
-  }
-  return { ok: true, name: file.name, text: text.replace(/\r\n/g, "\n") };
+  const checked = checkBytes(new Uint8Array(await file.arrayBuffer()));
+  if (!checked.ok) return { ok: false, error: `“${name}” wasn't opened: ${checked.reason}.` };
+  return { ok: true, name, text: checked.text, hidden: checked.hidden };
 }
 
 /** Saves to the device's Downloads (works in every mobile browser, no permission prompt). */
@@ -34,7 +32,5 @@ export function downloadFile(name: string, text: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-/** Makes a typed name safe to save: no path separators or reserved characters. */
-export function sanitizeFilename(name: string): string {
-  return name.trim().replace(/[\\/:*?"<>|\u0000-\u001f]/g, "_") || "untitled";
-}
+/** Makes a typed or received name safe to show and save (see cleanFilename). */
+export const sanitizeFilename = cleanFilename;

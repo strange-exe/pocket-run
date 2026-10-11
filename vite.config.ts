@@ -41,9 +41,51 @@ const isolation = {
   "Cross-Origin-Embedder-Policy": "require-corp",
 };
 
+// Content-Security-Policy: a second line of defence behind the Python sandbox (src/workers/lockdown.ts).
+// Everything comes from this site; WebAssembly may compile ('wasm-unsafe-eval') but eval() and
+// new Function() may not; no plugins, framing or <base> tricks. Workers loaded from a URL take this
+// policy from their own response, so the same header covers the page and every worker.
+// 'unsafe-inline' for styles only: CodeMirror injects its stylesheet at run time.
+const csp = [
+  "default-src 'self'",
+  "script-src 'self' 'wasm-unsafe-eval'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data:",
+  "font-src 'self'",
+  "connect-src 'self'",
+  "worker-src 'self'",
+  "manifest-src 'self'",
+  "object-src 'none'",
+  "base-uri 'none'",
+  "form-action 'self'",
+  "frame-ancestors 'none'",
+].join("; ");
+
+/** Every response's security headers. Also written to dist/_headers for Cloudflare Pages. */
+const securityHeaders = {
+  ...isolation,
+  "Content-Security-Policy": csp,
+  "X-Content-Type-Options": "nosniff",
+  "Referrer-Policy": "no-referrer",
+};
+
+/** Writes Cloudflare Pages' _headers file from securityHeaders, so the two can't drift apart. */
+function pagesHeaders(): Plugin {
+  return {
+    name: "pocket-run:pages-headers",
+    apply: "build",
+    generateBundle() {
+      const lines = Object.entries(securityHeaders).map(([name, value]) => `  ${name}: ${value}`);
+      this.emitFile({ type: "asset", fileName: "_headers", source: `/*\n${lines.join("\n")}\n` });
+    },
+  };
+}
+
 export default defineConfig(({ mode }) => ({
+  // The CSP is enforced on the production build: `vite preview` (which the end-to-end tests use)
+  // sends exactly what Cloudflare sends. The dev server keeps only the isolation headers.
   server: { headers: isolation },
-  preview: { headers: isolation },
+  preview: { headers: securityHeaders },
   worker: { format: "es" },
   define: {
     __PYODIDE_VERSION__: JSON.stringify(pyodideVersion),
@@ -51,6 +93,7 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: [
     inlineIcons(),
+    pagesHeaders(),
     VitePWA({
       registerType: "autoUpdate",
       manifest: {

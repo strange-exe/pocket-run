@@ -5,7 +5,8 @@ import { python } from "@codemirror/lang-python";
 import { bracketMatching, HighlightStyle, indentOnInput, indentUnit, syntaxHighlighting } from "@codemirror/language";
 import { Compartment, EditorState, type Extension } from "@codemirror/state";
 import {
-  drawSelection, EditorView, highlightActiveLine, highlightActiveLineGutter, keymap, lineNumbers, type KeyBinding,
+  drawSelection, EditorView, highlightActiveLine, highlightActiveLineGutter, highlightSpecialChars, keymap, lineNumbers,
+  type KeyBinding,
 } from "@codemirror/view";
 import { tags as t } from "@lezer/highlight";
 import type { LanguageId } from "./languages";
@@ -22,7 +23,15 @@ const highlight = HighlightStyle.define([
   { tag: [t.processingInstruction, t.meta], color: "var(--syn-keyword)" },
 ]);
 
+// CodeMirror already shows most invisible and direction-control characters as a red dot. These are
+// the rest of the ones safety.ts warns about (direction embeddings, word joiner, Hangul fillers,
+// Mongolian vowel separator), so nothing that can hide code stays invisible in the editor.
+const EXTRA_SPECIALS = new RegExp(
+  `[${[0x202a, 0x202b, 0x202c, 0x2068, 0x2060, 0x180e, 0x115f, 0x1160, 0x3164, 0xffa0].map((c) => String.fromCodePoint(c)).join("")}]`,
+);
+
 const theme = EditorView.theme({
+  ".cm-specialChar": { color: "var(--err)" },
   "&": { height: "100%", color: "var(--ink)", backgroundColor: "var(--sheet)" },
   ".cm-scroller": { fontFamily: "var(--font-code)", lineHeight: "1.55" },
   ".cm-content": { caretColor: "var(--accent)", padding: "12px 0" },
@@ -63,6 +72,7 @@ export function createEditor(
         highlightActiveLine(),
         history(),
         drawSelection(),
+        highlightSpecialChars({ addSpecialChars: EXTRA_SPECIALS }),
         indentOnInput(),
         bracketMatching(),
         closeBrackets(),

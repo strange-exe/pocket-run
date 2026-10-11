@@ -29,6 +29,32 @@ works offline and a runaway program can only ever affect its own browser tab.
 Your current file is kept on the device between visits. On phones, a bar of hard-to-reach symbols
 (`{ } [ ] ( ) ; " < > \ …`, Tab and cursor keys) sits above the keyboard while you edit code.
 
+**Colour themes** (the palette button at the top): Pocket Run's own light, dark and high-contrast themes, plus
+popular editor themes (GitHub-style, One Dark Pro, Dracula, Tokyo Night, Catppuccin). You can also load your own:
+**Get template** saves the current colours as a small JSON file; change the `#rrggbb` values and load it back. Themes
+are kept on the device, and any colour too faint to read is darkened or lightened (keeping its hue) until it meets
+WCAG AA contrast.
+
+### Safety
+
+Files never leave the device: Open reads the file in the page, and a share link carries it in the URL's `#` part.
+Anything that arrives from outside is checked first:
+
+- **Opened files and share links** must be Python, C or C++ text up to 512 KB. Programs, archives, documents and
+  images renamed to `.py`/`.c`/`.cpp` are refused, as are invalid UTF-8 and control characters.
+- **Hidden text tricks** are blocked: the direction-control characters of "Trojan Source" attacks (CVE-2021-42574),
+  which make code display differently from how it runs. Invisible characters are shown as red dots, explained, and
+  can be removed in one tap; files containing them can't be shared until they are.
+- **Share links** that unpack to more than a code file's worth of data are stopped while unpacking.
+- **File names** lose path parts, direction tricks and reserved names (a name with a right-to-left override, shown as `mainexe.py`, is really `main<RLO>yp.exe` and is cleaned to `mainyp.exe`).
+- **Theme files** may only contain `#rrggbb` colours for known names: no CSS, URLs or script.
+- **Running code** is sandboxed: before student code runs, the Python worker removes its access to the site's
+  storage (where the offline app itself is cached), the network and new workers, so a shared program can't tamper
+  with the app. C/C++ programs run as WebAssembly with only a minimal WASI interface.
+- **Content-Security-Policy** on every response, the page and each worker: scripts and connections only from the
+  site itself, WebAssembly allowed but no `eval()` or `new Function()` (so Pyodide's `run_js` is refused too), no
+  plugins, framing or `<base>` tricks.
+
 ### Limits
 
 - Programs stop after **8 seconds** of running and after **64 KB** of output. Time spent waiting for you to type
@@ -56,7 +82,7 @@ main thread ─────┤
 - **Stopping a program.** Python gets a `KeyboardInterrupt` through a `SharedArrayBuffer`, which keeps the warm
   interpreter. If it doesn't yield within a second (for example, a long loop in C code), the worker is replaced.
   A C/C++ program runs in its own small worker, so stopping it never reloads the compiler. Interrupts need
-  cross-origin isolation, which `public/_headers` turns on.
+  cross-origin isolation, which the response headers turn on (see below).
 - **Offline.** A Workbox service worker precaches the app and the Python runtime. It registers only after Python is
   ready, so its install reuses the files the page just downloaded instead of fetching them again. The C/C++ pack is
   opt-in: the compiler worker downloads it, checks every file's SHA-256, and keeps it in its own cache.
@@ -111,7 +137,7 @@ Every push and pull request runs the unit tests and the end-to-end suite in Chro
 (`.github/workflows/ci.yml`, one parallel job per browser).
 
 The site is static and deploys through Cloudflare Pages' Git integration: build command `npm run build`, output
-directory `dist`, Node version from `.node-version`. `public/_headers` sets the cross-origin isolation headers. Cloudflare Pages limits each file to 25 MiB: clang is
+directory `dist`, Node version from `.node-version`. The build writes `dist/_headers` from `securityHeaders` in `vite.config.ts`: cross-origin isolation plus a strict Content-Security-Policy (scripts and connections only from the site itself, WebAssembly allowed, no `eval`). Cloudflare Pages limits each file to 25 MiB: clang is
 29.8 MiB uncompressed, so it ships gzipped (10.6 MB) and is decompressed on the device.
 
 ## License
@@ -127,3 +153,8 @@ MIT. See [LICENSE](LICENSE).
   for code from before LLVM's relicensing. Both texts ship with the pack as `LICENSE.llvm.txt`.
 - Fonts: Geist and JetBrains Mono (SIL Open Font License 1.1).
 - Icons: Phosphor Icons (MIT).
+- Theme palettes (colour values only, in `src/themes.ts`): [Catppuccin](https://github.com/catppuccin/palette) (MIT),
+  [Dracula](https://draculatheme.com/) (MIT), [Tokyo Night](https://github.com/folke/tokyonight.nvim) by folke
+  (Apache License 2.0), [One Dark Pro](https://github.com/Binaryify/OneDark-Pro) (MIT), and the
+  [GitHub VS Code theme](https://github.com/primer/github-vscode-theme) (MIT). "GitHub" is a trademark of GitHub, Inc.;
+  the theme is labelled "GitHub-style" and is not affiliated with or endorsed by GitHub.

@@ -3,9 +3,13 @@
 import type { PyodideAPI } from "pyodide";
 import { waitForInput } from "../runner/input-channel";
 import type { BootSource, FromWorker, Stream, ToWorker } from "../runner/protocol";
+import { lockDown } from "./lockdown";
 
 declare const self: DedicatedWorkerGlobalScope;
 const post = (msg: FromWorker) => self.postMessage(msg);
+// Private references, taken before lockDown() removes these from the global scope.
+// Student code can't reach module variables, only globals.
+const cacheStorage = self.caches;
 
 // Runs user code in a fresh namespace and formats errors the way CPython does,
 // minus our own wrapper frame. Returns (exit_code, interrupted, recycle).
@@ -85,7 +89,7 @@ const SNAPSHOT_CACHE = "pocket-run-python-snapshot";
 
 async function readSnapshot(key: string): Promise<Uint8Array | null> {
   try {
-    const hit = await (await caches.open(SNAPSHOT_CACHE)).match(key);
+    const hit = await (await cacheStorage.open(SNAPSHOT_CACHE)).match(key);
     return hit ? new Uint8Array(await hit.arrayBuffer()) : null;
   } catch {
     return null;
@@ -94,7 +98,7 @@ async function readSnapshot(key: string): Promise<Uint8Array | null> {
 
 async function saveSnapshot(key: string, snapshot: Uint8Array) {
   try {
-    const cache = await caches.open(SNAPSHOT_CACHE);
+    const cache = await cacheStorage.open(SNAPSHOT_CACHE);
     for (const old of await cache.keys()) if (!old.url.endsWith(key)) await cache.delete(old);
     await cache.put(key, new Response(snapshot as Uint8Array<ArrayBuffer>));
   } catch {
@@ -119,7 +123,7 @@ async function boot(interrupt: SharedArrayBuffer | null): Promise<PyodideAPI> {
       py = await loadPyodide({ indexURL, _loadSnapshot: snapshot });
       bootSource = "snapshot";
     } catch {
-      await caches.delete(SNAPSHOT_CACHE).catch(() => {}); // corrupt or incompatible: start fresh
+      await cacheStorage.delete(SNAPSHOT_CACHE).catch(() => {}); // corrupt or incompatible: start fresh
     }
   }
   if (!py) {
@@ -137,6 +141,9 @@ async function boot(interrupt: SharedArrayBuffer | null): Promise<PyodideAPI> {
   py.setStdout(writer("stdout"));
   py.setStderr(writer("stderr"));
   py.runPython(RUNNER_PY);
+  // Fail closed: never run student code with storage or network still reachable.
+  const reachable = lockDown(self);
+  if (reachable.length) throw new Error(`couldn't isolate Python from: ${reachable.join(", ")}`);
   return py;
 }
 
