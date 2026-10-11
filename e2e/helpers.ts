@@ -6,17 +6,17 @@ import { expect, test as base, type Page } from "@playwright/test";
  * messages are tolerated in WebKit only.
  */
 const WEBKIT_RECOVERED_WORKER_BLOCK = [
-  /^Refused to load '[^']+\.worker-[\w-]+\.js' worker because of Cross-Origin-Embedder-Policy\.$/,
+  /^Refused to load '[^']+\/assets\/[\w-]+\.js' worker because of Cross-Origin-Embedder-Policy\.$/,
   /^Worker load was blocked by Cross-Origin-Embedder-Policy$/,
   /^Failed to load resource: Worker load was blocked by Cross-Origin-Embedder-Policy$/,
   // Not end-anchored: WebKit's text can carry trailing whitespace, which a bare `$` rejects.
-  /\/assets\/[\w-]+\.worker-[\w-]+\.js due to access control checks/,
+  /\/assets\/[\w-]+\.js due to access control checks/,
   /\/pyodide\/[\d.]+\/pyodide\.mjs due to access control checks/,
 ];
 
 /**
  * Fails any test whose page logs a console error or throws an uncaught exception. A test can
- * declare extra, specific noise it expects with `test.use({ tolerate: [...] })`.
+ * declare extra, specific noise it expects with `test.use(tolerating(/.../, /.../))`.
  */
 export const test = base.extend<{ consoleErrors: string[]; tolerate: RegExp[] }>({
   tolerate: [[], { option: true }],
@@ -37,6 +37,12 @@ export const test = base.extend<{ consoleErrors: string[]; tolerate: RegExp[] }>
   ],
 });
 export { expect };
+
+/**
+ * Options for test.use() that tolerate these messages. Playwright reads an array given to test.use()
+ * as its own [value, options] tuple, so `{ tolerate: [a, b] }` would arrive as just `a` (measured).
+ */
+export const tolerating = (...patterns: RegExp[]) => ({ tolerate: [patterns, { scope: "test" }] as unknown as RegExp[] });
 
 export async function openApp(page: Page) {
   await page.goto("/");

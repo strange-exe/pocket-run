@@ -61,6 +61,25 @@ const csp = [
   "frame-ancestors 'none'",
 ].join("; ");
 
+/** Hash-only file names (assets/3fA9kQ2x.js): long-term caching still works, source names don't leak. */
+const hashedNames = {
+  entryFileNames: "assets/[hash].js",
+  chunkFileNames: "assets/[hash].js",
+  assetFileNames: "assets/[hash][extname]",
+};
+
+/**
+ * Cache rules for Cloudflare Pages. Hashed and versioned files never change, so browsers may keep
+ * them for a year. Everything else (index.html, sw.js, theme-boot.js) keeps Pages' default of
+ * revalidating on every visit, so a new deploy is picked up at once.
+ */
+const IMMUTABLE = "public, max-age=31536000, immutable";
+const cacheRules: Record<string, string> = {
+  "/assets/*": IMMUTABLE,
+  [`/pyodide/${pyodideVersion}/*`]: IMMUTABLE,
+  "/clang/*": IMMUTABLE, // the folder name is the pack's version
+};
+
 /** Every response's security headers. Also written to dist/_headers for Cloudflare Pages. */
 const securityHeaders = {
   ...isolation,
@@ -76,7 +95,8 @@ function pagesHeaders(): Plugin {
     apply: "build",
     generateBundle() {
       const lines = Object.entries(securityHeaders).map(([name, value]) => `  ${name}: ${value}`);
-      this.emitFile({ type: "asset", fileName: "_headers", source: `/*\n${lines.join("\n")}\n` });
+      const caching = Object.entries(cacheRules).map(([path, value]) => `${path}\n  Cache-Control: ${value}\n`);
+      this.emitFile({ type: "asset", fileName: "_headers", source: [`/*\n${lines.join("\n")}\n`, ...caching].join("\n") });
     },
   };
 }
@@ -86,7 +106,19 @@ export default defineConfig(({ mode }) => ({
   // sends exactly what Cloudflare sends. The dev server keeps only the isolation headers.
   server: { headers: isolation },
   preview: { headers: securityHeaders },
-  worker: { format: "es" },
+  worker: { format: "es", rolldownOptions: { output: hashedNames } },
+  build: {
+    // No source maps in production (Vite's default, stated so it stays that way): DevTools can't
+    // rebuild the src/ tree. The code itself is still readable; nothing secret lives in the client.
+    sourcemap: false,
+    rolldownOptions: {
+      output: {
+        ...hashedNames,
+        // Oxc minifier: drop leftover console.* calls (and debugger statements, its default).
+        minify: { compress: { dropConsole: true, dropDebugger: true } },
+      },
+    },
+  },
   define: {
     __PYODIDE_VERSION__: JSON.stringify(pyodideVersion),
     __CLANG_PACK__: JSON.stringify(clangPack(mode)),

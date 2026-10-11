@@ -16,7 +16,8 @@ test("a built-in theme applies at once and is kept after a reload", async ({ pag
   // The start-up script paints it before the app's own code has even loaded: hold that code back.
   let release!: () => void;
   const held = new Promise<void>((r) => (release = r));
-  await page.route("**/assets/index-*.js", async (route) => { await held; await route.continue(); });
+  // Asset names are hash-only, so hold every app script (the entry module loads first).
+  await page.route("**/assets/*.js", async (route) => { await held; await route.continue(); });
   await page.reload({ waitUntil: "commit" });
   await page.locator(".editor-pane").waitFor({ state: "attached" });
   expect(await page.evaluate(() => document.documentElement.dataset.theme)).toBe("dark");
