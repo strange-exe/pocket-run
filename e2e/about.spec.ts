@@ -136,11 +136,37 @@ test.describe("the 3D backdrop", () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     const scripts = scriptsOf(page);
     await page.goto("/about/");
-    await expect(page.locator('.field[data-state="live"]')).toBeAttached({ timeout: 20_000 });
-    await expect(page.locator(".field canvas")).toHaveAttribute("aria-hidden", "true");
+    // It renders where the browser can (WebGPU, else WebGL 2). Where it can't (Firefox on CI's Linux runners has
+    // neither), it must give up cleanly: no canvas left behind, no errors, the static backdrop stays.
+    const field = page.locator(".field");
+    await expect(field).toHaveAttribute("data-state", /^(live|unavailable)$/, { timeout: 20_000 });
+    if ((await field.getAttribute("data-state")) === "unavailable") {
+      const gpu = await page.evaluate(async () =>
+        !!document.createElement("canvas").getContext("webgl2") ||
+        !!(await (navigator as Navigator & { gpu?: { requestAdapter(): Promise<unknown> } }).gpu?.requestAdapter()));
+      expect(gpu, "gave up although the browser can render 3D").toBe(false);
+      await expect(page.locator(".field canvas")).toHaveCount(0);
+    } else {
+      await expect(page.locator(".field canvas")).toHaveAttribute("aria-hidden", "true");
+    }
     expect(scripts[0]).toBe("/theme-boot.js");
     expect(scripts.filter((s) => !/^\/assets\/(3d\/)?[\w-]+\.js$/.test(s) && s !== "/theme-boot.js")).toEqual([]);
     expect(scripts.some((s) => s.startsWith("/assets/3d/"))).toBe(true);
+  });
+
+  test("without WebGPU or WebGL 2 it gives up cleanly, keeping the static backdrop", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.addInitScript(() => {
+      const getContext = HTMLCanvasElement.prototype.getContext;
+      HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, type: string, ...rest: unknown[]) {
+        return type === "webgl2" || type === "webgpu" ? null : (getContext as (...a: unknown[]) => unknown).call(this, type, ...rest);
+      } as typeof getContext;
+      Object.defineProperty(Navigator.prototype, "gpu", { get: () => undefined, configurable: true });
+    });
+    await page.goto("/about/");
+    await expect(page.locator(".field")).toHaveAttribute("data-state", "unavailable", { timeout: 20_000 });
+    await expect(page.locator(".field canvas")).toHaveCount(0);
+    await expect(page.locator(".phone")).toBeVisible(); // the console-error check runs on teardown
   });
 
   for (const [name, setup] of [

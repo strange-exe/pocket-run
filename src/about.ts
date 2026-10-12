@@ -58,6 +58,7 @@ if (host && fieldAllowed()) {
       .catch(() => {
         // No WebGPU or WebGL 2, or the download failed: the static dotted backdrop is already there.
         host.querySelector("canvas")?.remove();
+        host.dataset.state = "unavailable";
       });
   };
   const idle = () => ("requestIdleCallback" in window ? requestIdleCallback(start, { timeout: 3000 }) : setTimeout(start, 1200));
