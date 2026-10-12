@@ -13,10 +13,13 @@ const shots = process.env.SHOTS_DIR ?? "e2e/shots/after";
  * Opens the about page in a colour scheme. Firefox drops a scheme emulated before the first
  * cross-origin-isolated navigation (see themes.spec.ts), so load, emulate, reload, and check it took.
  */
-async function openAbout(page: import("@playwright/test").Page, scheme: "light" | "dark", reducedMotion?: "reduce") {
+async function openAbout(page: import("@playwright/test").Page, scheme: "light" | "dark", reducedMotion?: "reduce", beforeReload?: () => void) {
   await followDeviceTheme(page);
   await page.goto("/about/");
   await page.emulateMedia({ colorScheme: scheme, ...(reducedMotion ? { reducedMotion } : {}) });
+  // Listeners attached here see only the page under test: the reload itself cancels whatever the first
+  // load was still fetching (Firefox reports the 3D backdrop's download as NS_BINDING_ABORTED).
+  beforeReload?.();
   await page.reload();
   expect(await page.evaluate(() => document.documentElement.dataset.theme)).toBe(scheme);
 }
@@ -25,22 +28,40 @@ for (const vp of viewports) {
   for (const scheme of ["light", "dark"] as const) {
     test(`about ${vp.name} ${scheme}`, async ({ page }, testInfo) => {
       const failed: string[] = [];
-      page.on("requestfailed", (r) => failed.push(`${r.url()} ${r.failure()?.errorText}`));
-      page.on("response", (r) => { if (r.status() >= 400) failed.push(`${r.status()} ${r.url()}`); });
       await page.setViewportSize(vp);
-      await openAbout(page, scheme);
+      await openAbout(page, scheme, undefined, () => {
+        // Only requests the page under test starts. The first load can still start one just before the reload
+        // replaces it (Firefox, measured: its 3D download began 10 ms before the reload and was cancelled), so
+        // counting begins when the new document commits, before it requests anything.
+        const ours = new Set<import("@playwright/test").Request>();
+        let committed = false;
+        page.once("framenavigated", () => { committed = true; });
+        page.on("request", (r) => { if (committed) ours.add(r); });
+        page.on("requestfailed", (r) => { if (ours.has(r)) failed.push(`${r.url()} ${r.failure()?.errorText}`); });
+        page.on("response", (r) => { if (r.status() >= 400) failed.push(`${r.status()} ${r.url()}`); });
+      });
 
       // Above the fold: what it is (headline), and the one thing to do next.
       await expect(page.getByRole("heading", { level: 1 })).toBeInViewport();
       await expect(page.locator(".hero").getByRole("link", { name: "Open Pocket Run" })).toBeInViewport();
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
-      // The phone is drawn in HTML, so it wears the current theme: its screen is the page's own sheet colour.
+      // The phone is drawn in HTML: it has a real phone's proportions (about 9:19.5, never a squat box), shows
+      // the app's real phone layout, and wears the current theme (its screen is the app's --paper colour).
       await expect(page.locator(".phone")).toBeVisible();
-      const [screen, body] = await page.evaluate(() => [
-        getComputedStyle(document.querySelector(".screen")!).backgroundColor,
-        getComputedStyle(document.body).backgroundColor,
-      ]);
-      expect(screen).toBe(body);
+      const box = (await page.locator(".phone").boundingBox())!;
+      expect(box.height / box.width, "phone proportions").toBeGreaterThan(2);
+      for (const part of [".sbar", ".m-head", ".m-status", ".m-file", ".m-tools", ".code", ".m-out", ".m-dock .run"]) {
+        await expect(page.locator(`.screen ${part}`), part).toBeVisible();
+      }
+      const [screen, paper] = await page.evaluate(() => {
+        const probe = document.createElement("div");
+        probe.style.background = "var(--paper)";
+        document.body.append(probe);
+        const value = [getComputedStyle(document.querySelector(".screen")!).backgroundColor, getComputedStyle(probe).backgroundColor];
+        probe.remove();
+        return value;
+      });
+      expect(screen).toBe(paper);
 
       const dir = `${shots}/${testInfo.project.name}`;
       await page.screenshot({ path: `${dir}/about-${vp.name}-${scheme}.png`, fullPage: true, animations: "disabled" });
@@ -97,13 +118,67 @@ test("the about page works offline", async ({ page, context }) => {
   await page.goto("/about/");
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   // Styled too (the stylesheet came from the cache): the phone is laid out, not bare text.
-  expect(await page.locator(".phone").evaluate((el) => getComputedStyle(el).borderRadius)).toBe("44px");
+  expect(await page.locator(".phone").evaluate((el) => getComputedStyle(el).aspectRatio)).toBe("9 / 19.5");
 });
 
-test("the about page loads no script besides the theme starter", async ({ page }) => {
+// The 3D dot field (src/about-field.ts, ~240 KB) is optional: wide screens only, after load, never with
+// reduced motion or offline, and never precached for the app's offline install.
+const scriptsOf = (page: import("@playwright/test").Page) => {
   const scripts: string[] = [];
   page.on("request", (r) => { if (r.resourceType() === "script") scripts.push(new URL(r.url()).pathname); });
+  return scripts;
+};
+
+test.describe("the 3D backdrop", () => {
+  test.use({ serviceWorkers: "block" });
+
+  test("on a wide screen it loads after the page, from assets/3d/, hidden from screen readers", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    const scripts = scriptsOf(page);
+    await page.goto("/about/");
+    await expect(page.locator('.field[data-state="live"]')).toBeAttached({ timeout: 20_000 });
+    await expect(page.locator(".field canvas")).toHaveAttribute("aria-hidden", "true");
+    expect(scripts[0]).toBe("/theme-boot.js");
+    expect(scripts.filter((s) => !/^\/assets\/(3d\/)?[\w-]+\.js$/.test(s) && s !== "/theme-boot.js")).toEqual([]);
+    expect(scripts.some((s) => s.startsWith("/assets/3d/"))).toBe(true);
+  });
+
+  for (const [name, setup] of [
+    ["on a phone", async (page: import("@playwright/test").Page) => page.setViewportSize({ width: 390, height: 844 })],
+    ["with reduced motion", async (page: import("@playwright/test").Page) => {
+      await page.setViewportSize({ width: 1440, height: 900 });
+      await page.emulateMedia({ reducedMotion: "reduce" });
+    }],
+  ] as const) {
+    test(`${name} it is never downloaded`, async ({ page }) => {
+      await setup(page);
+      const scripts = scriptsOf(page);
+      await page.goto("/about/");
+      await page.waitForLoadState("networkidle");
+      await page.waitForTimeout(3500); // past the idle callback's 3 s timeout
+      expect(scripts.filter((s) => s.startsWith("/assets/3d/"))).toEqual([]);
+      await expect(page.locator(".field canvas")).toHaveCount(0);
+    });
+  }
+});
+
+test("the phone tilts towards a mouse, but not with reduced motion", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/about/");
-  await page.waitForLoadState("networkidle");
-  expect(scripts).toEqual(["/theme-boot.js"]);
+  const phone = page.locator(".phone");
+  const box = (await phone.boundingBox())!;
+  const tilt = () => phone.evaluate((el) => (el as HTMLElement).style.getPropertyValue("--tilt-y"));
+  await page.mouse.move(box.x + box.width * 0.9, box.y + box.height * 0.2, { steps: 4 });
+  expect(parseFloat(await tilt())).toBeGreaterThan(2);
+  await page.mouse.move(5, 5); // leaving the stage puts it back
+  expect(await tilt()).toBe("");
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.mouse.move(box.x + box.width * 0.9, box.y + box.height * 0.2, { steps: 4 });
+  expect(await tilt()).toBe("");
+});
+
+test("the service worker never precaches the 3D backdrop", async ({ request }) => {
+  const sw = await (await request.get("/sw.js")).text();
+  expect(sw).toContain("assets/"); // it does list the app's own files
+  expect(sw).not.toContain("assets/3d/");
 });

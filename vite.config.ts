@@ -61,10 +61,15 @@ const csp = [
   "frame-ancestors 'none'",
 ].join("; ");
 
-/** Hash-only file names (assets/3fA9kQ2x.js): long-term caching still works, source names don't leak. */
+/**
+ * Hash-only file names (assets/3fA9kQ2x.js): long-term caching still works, source names don't leak.
+ * The about page's optional 3D backdrop (three.js) goes to assets/3d/, which the service worker skips:
+ * students installing the app for offline Python shouldn't download a decoration.
+ */
+const isBackdrop = (ids: string[]) => ids.some((id) => /[\\/]node_modules[\\/]three[\\/]|[\\/]src[\\/]about-field\.ts$/.test(id));
 const hashedNames = {
   entryFileNames: "assets/[hash].js",
-  chunkFileNames: "assets/[hash].js",
+  chunkFileNames: (chunk: { moduleIds: string[] }) => (isBackdrop(chunk.moduleIds) ? "assets/3d/[hash].js" : "assets/[hash].js"),
   assetFileNames: "assets/[hash][extname]",
 };
 
@@ -148,7 +153,8 @@ export default defineConfig(({ mode }) => ({
         // The Python runtime is precached so the first visit makes the app work offline.
         globPatterns: ["**/*.{js,mjs,css,html,svg,png,woff2,wasm,zip,json}"],
         // The C/C++ pack (~20 MB) is opt-in: the compiler worker downloads it into its own cache.
-        globIgnores: ["clang/**"],
+        // So is the about page's 3D backdrop: offline, the page shows its static dotted backdrop instead.
+        globIgnores: ["clang/**", "assets/3d/**"],
         maximumFileSizeToCacheInBytes: 12 * 1024 * 1024,
         // Versioned or hashed URLs need no ?__WB_REVISION__ cache-buster, so installing the
         // service worker can reuse what the page already downloaded (no second 6 MB download).

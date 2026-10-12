@@ -123,7 +123,10 @@ gzipped pack to `public/clang/<commit>/`.
 
 The about page (`about/index.html`, `src/about.css`) is static and shares the app's tokens and themes
 (`src/tokens.css`). Its phone is drawn in HTML and CSS rather than a screenshot, so it follows every theme and needs no
-image files.
+image files. On wide screens a 3D dot field (`src/about-field.ts`, three.js WebGPU with TSL, falling back to WebGL 2)
+loads behind the phone once the page is idle. It is skipped with reduced motion, offline, Save-Data, 2G/3G and
+low-memory devices, lives in `assets/3d/`, and is never precached, so installing the app for offline use doesn't
+download it.
 
 ### Testing on Android (emulator or USB device)
 
@@ -159,6 +162,7 @@ MIT. See [LICENSE](LICENSE).
   for code from before LLVM's relicensing. Both texts ship with the pack as `LICENSE.llvm.txt`.
 - Fonts: Geist and JetBrains Mono (SIL Open Font License 1.1).
 - Icons: Phosphor Icons (MIT).
+- [three.js](https://github.com/mrdoob/three.js) (MIT): the about page's 3D backdrop.
 - Theme palettes (colour values only, in `src/themes.ts`): [Catppuccin](https://github.com/catppuccin/palette) (MIT),
   [Dracula](https://draculatheme.com/) (MIT), [Tokyo Night](https://github.com/folke/tokyonight.nvim) by folke
   (Apache License 2.0), [One Dark Pro](https://github.com/Binaryify/OneDark-Pro) (MIT), and the
