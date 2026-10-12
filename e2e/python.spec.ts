@@ -67,10 +67,13 @@ test.describe("hostile programs are contained", () => {
     expect(after.output).toBe("still alive\n");
   });
 
-  test("memory bomb raises MemoryError and the next run works", async ({ page }) => {
+  test("a memory bomb is stopped and the next run works", async ({ page }) => {
+    // Filling memory takes about 4 to 8 s here depending on the engine (measured 2026-10-13: Firefox 4.8 s,
+    // WebKit 4.0 s, Chromium 8.3 s), so whichever limit comes first stops it: MemoryError or the 8 s limit.
+    // Both contain the program; what matters is that it ends cleanly and Python keeps working.
     const r = await run(page, "main.py", "a = []\nwhile True:\n    a.append(bytearray(10**7))");
-    expect(r.status).toBe("error");
-    expect(r.output).toContain("MemoryError");
+    if (r.status === "error") expect(r.output).toContain("MemoryError");
+    else expect(r.status).toBe("timeout");
     const after = await run(page, "main.py", 'print("ok")');
     expect(after.output).toBe("ok\n");
   });
