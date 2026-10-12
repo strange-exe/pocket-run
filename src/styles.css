@@ -1,5 +1,5 @@
 /* Pocket Run: a calm, professional code runner. Cool graphite neutrals, one emerald accent (Run, focus,
-   live input). Shape rule: controls 6px, panels 10px, status chips full pill. */
+   live input). Shape rule: controls 6px, panels 12px, status chips full pill. */
 
 @import "./tokens.css";
 
@@ -66,7 +66,7 @@ button, input, textarea { font: inherit; color: inherit; }
   margin: 0;
   color: var(--muted);
   font-size: 0.8125rem;
-  text-wrap: pretty;
+  text-wrap: balance;
 }
 
 /* About and Theme: icon buttons on phones (44px targets), labelled buttons on desktop. */
@@ -106,6 +106,7 @@ button, input, textarea { font: inherit; color: inherit; }
   border: 1px solid var(--rule);
   border-radius: 999px;
   background: var(--sheet);
+  font-family: var(--font-code);
   font-size: 0.75rem;
   font-weight: 500;
   color: var(--muted);
@@ -117,7 +118,7 @@ button, input, textarea { font: inherit; color: inherit; }
   background: var(--muted);
 }
 .status-dot[data-state="booting"] { background: var(--warn); animation: pulse 1.2s ease-in-out infinite; }
-.status-dot[data-state="ready"] { background: var(--ok); }
+.status-dot[data-state="ready"] { background: var(--ok); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 22%, transparent); }
 .status-dot[data-state="failed"] { background: var(--err); }
 @keyframes pulse { 50% { opacity: 0.35; } }
 
@@ -191,7 +192,7 @@ button, input, textarea { font: inherit; color: inherit; }
   white-space: nowrap;
 }
 .lang-tag:empty { display: none; }
-.lang-tag[data-unsupported] { background: var(--err-soft); color: var(--err); }
+.lang-tag[data-unsupported] { background: none; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--err) 55%, transparent); color: var(--err); }
 
 .file-actions { display: grid; grid-template-columns: repeat(4, 1fr); flex: 1 1 100%; gap: var(--s1); }
 
@@ -285,17 +286,18 @@ button, input, textarea { font: inherit; color: inherit; }
   color: var(--muted);
 }
 .receipt strong {
-  padding: 1px var(--s2);
+  padding: 0 var(--s2);
+  border: 1px solid var(--rule);
   border-radius: 999px;
   font-weight: 600;
-  background: var(--hover);
   color: var(--ink);
 }
-.receipt[data-status="ok"] strong { background: var(--accent-soft); color: var(--accent-ink); }
+/* Status colours on the strip itself (no tint), where the readability guard checks them; the word carries the meaning. */
+.receipt[data-status="ok"] strong { border-color: color-mix(in srgb, var(--ok) 55%, transparent); color: var(--ok); }
 .receipt[data-status="error"] strong,
 .receipt[data-status="compile-error"] strong,
 .receipt[data-status="timeout"] strong,
-.receipt[data-status="output-limit"] strong { background: var(--err-soft); color: var(--err); }
+.receipt[data-status="output-limit"] strong { border-color: color-mix(in srgb, var(--err) 55%, transparent); color: var(--err); }
 
 /* One-time C/C++ download offer, shown where the result would appear. */
 .pack-offer { display: grid; gap: var(--s3); }
@@ -404,7 +406,8 @@ button, input, textarea { font: inherit; color: inherit; }
 .live-row input:focus-visible { outline-offset: 1px; }
 .live-row .send { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
 .live-row .send .icon { color: inherit; }
-.live-row .send:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+/* Hover keeps the fill (so the text keeps its checked contrast) and adds a ring in the text colour. */
+.live-row .send:hover { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--on-accent) 55%, transparent); }
 
 /* A finished run fades its output in: it shows that something new arrived. */
 .printout.fresh .printout-body { animation: arrive 160ms ease-out; }
@@ -482,7 +485,7 @@ button, input, textarea { font: inherit; color: inherit; }
   cursor: pointer;
   transition: background-color 120ms, border-color 120ms;
 }
-.run:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+.run:not([data-running]):hover { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--on-accent) 55%, transparent); }
 .run:active { transform: translateY(1px); }
 .run-icon { display: inline-flex; }
 .run-icon .icon-stop { display: none; }
@@ -497,7 +500,6 @@ button, input, textarea { font: inherit; color: inherit; }
   border-radius: 4px;
   font: 500 0.6875rem var(--font-code);
   white-space: nowrap;
-  opacity: 0.85;
 }
 
 /* ---------- dialog ---------- */

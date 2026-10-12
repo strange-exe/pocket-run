@@ -43,9 +43,9 @@
   --edge: color-mix(in srgb, var(--ink) 18%, var(--sheet));    /* button borders */
   --field: color-mix(in srgb, var(--muted) 85%, var(--sheet)); /* text-field borders, 3:1 or more */
   --hover: color-mix(in srgb, var(--ink) 6%, transparent);
-  --accent-hover: color-mix(in srgb, var(--accent) 84%, var(--ink));
   --accent-soft: color-mix(in srgb, var(--accent) 12%, transparent);
-  --accent-ink: color-mix(in srgb, var(--accent) 78%, var(--ink)); /* accent text on --accent-soft */
+  /* Accent text, also on --accent-soft. Palette themes replace it with a checked value (accentInk in themes.ts). */
+  --accent-ink: color-mix(in srgb, var(--accent) 78%, var(--ink));
   --err-soft: color-mix(in srgb, var(--err) 10%, transparent);
   --active-line: color-mix(in srgb, var(--ink) 4%, transparent);
   --selection: color-mix(in srgb, var(--accent) 22%, transparent);
@@ -53,7 +53,7 @@
   --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px;
   --code-size: 16px; /* 16px stops iOS zooming into the editor on focus */
   --radius: 6px;
-  --radius-panel: 10px;
+  --radius-panel: 12px;
 }
 
 /* data-theme is set before first paint by the start-up script in index.html. */

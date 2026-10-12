@@ -198,14 +198,32 @@ export function readable(colors: Colors): { colors: Colors; adjusted: Token[] } 
   const out = { ...colors };
   const adjusted: Token[] = [];
   const set = (t: Token, v: string) => { if (v !== out[t]) { out[t] = v; adjusted.push(t); } };
-  const surfaces = [out.sheet, out.bar];
-  for (const t of TEXT_TOKENS) set(t, lift(out[t], surfaces, 4.5));
+  // Text sits on the editor, the strips and the editor's current line (4% ink, --active-line); the header's
+  // ink and muted text also sit on the page itself.
+  const surfaces = [out.sheet, out.bar, over(out.sheet, out.ink, 0.04)];
+  for (const t of TEXT_TOKENS) set(t, lift(out[t], t === "ink" || t === "muted" ? [...surfaces, out.paper] : surfaces, 4.5));
   set("accent", lift(out.accent, [out.sheet], 3)); // the Run button must stand out from the page (UI contrast)
   if (contrast(out["on-accent"], out.accent) < 4.5) {
     const best = [out.ink, out.sheet, "#0b0e13", "#fbfcfd"].sort((a, b) => contrast(b, out.accent) - contrast(a, out.accent))[0];
     set("on-accent", best);
   }
   return { colors: out, adjusted };
+}
+
+/** Mixes `t` of `top` over `base`, like CSS color-mix(in srgb, top t, transparent) drawn on `base`. */
+function over(base: string, top: string, t: number): string {
+  const [b, f] = [rgb(base), rgb(top)];
+  return toHex(b.map((v, i) => v * (1 - t) + f[i] * t));
+}
+
+/**
+ * Accent-coloured text (links, tags, step numbers), readable at 4.5:1 on the editor, the strips, and the
+ * accent-tinted chips on both (--accent-soft is 12% accent). The CSS fallback in tokens.css covers
+ * Pocket Run's own palettes, which are checked by hand.
+ */
+export function accentInk(colors: Colors): string {
+  const surfaces = [colors.sheet, colors.bar];
+  return lift(colors.accent, [...surfaces, ...surfaces.map((s) => over(s, colors.accent, 0.12))], 4.5);
 }
 
 // ---------- custom themes from a file ----------
@@ -310,11 +328,12 @@ const prefersDark = () => matchMedia("(prefers-color-scheme: dark)").matches;
 /** Paints a theme: data-theme picks light/dark CSS; other themes set their colours as inline variables. */
 export function applyTheme(theme: Theme) {
   const root = document.documentElement;
-  for (const t of TOKENS) root.style.removeProperty(`--${t}`);
+  for (const t of [...TOKENS, "accent-ink"]) root.style.removeProperty(`--${t}`);
   const scheme: Scheme = theme.id === "system" ? (prefersDark() ? "dark" : "light") : theme.scheme;
   root.dataset.theme = scheme;
-  const colors = theme.colors ? readable(theme.colors).colors : null;
-  if (colors) for (const t of TOKENS) root.style.setProperty(`--${t}`, colors[t]);
+  const base = theme.colors ? readable(theme.colors).colors : null;
+  const colors = base ? { ...base, "accent-ink": accentInk(base) } : null;
+  if (colors) for (const [t, v] of Object.entries(colors)) root.style.setProperty(`--${t}`, v);
   const paper = colors?.paper ?? POCKET[scheme].paper;
   for (const meta of document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]')) meta.content = paper;
   // What the start-up script needs to paint this theme before the app loads next time.

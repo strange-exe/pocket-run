@@ -36,7 +36,10 @@ const theme = EditorView.theme({
   ".cm-scroller": { fontFamily: "var(--font-code)", lineHeight: "1.55" },
   ".cm-content": { caretColor: "var(--accent)", padding: "12px 0" },
   ".cm-cursor": { borderLeftColor: "var(--accent)", borderLeftWidth: "2px" },
-  ".cm-gutters": { backgroundColor: "var(--sheet)", color: "var(--muted)", border: "none", paddingLeft: "4px" },
+  // A hairline and some air between the line numbers and the code, so "1 name" doesn't read as one word.
+  ".cm-gutters": { backgroundColor: "var(--sheet)", color: "var(--muted)", border: "none", borderRight: "1px solid var(--rule)", paddingLeft: "4px" },
+  ".cm-lineNumbers .cm-gutterElement": { padding: "0 10px 0 6px", minWidth: "2.5ch" },
+  ".cm-line": { paddingLeft: "10px" },
   ".cm-activeLine": { backgroundColor: "var(--active-line)" },
   ".cm-activeLineGutter": { backgroundColor: "transparent", color: "var(--ink)" },
   "&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection": { backgroundColor: "var(--selection)" },

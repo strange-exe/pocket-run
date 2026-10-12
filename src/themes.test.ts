@@ -1,7 +1,7 @@
 /// <reference types="node" />
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { BUILT_IN, contrast, DEFAULT_THEME_ID, parseThemeFile, POCKET, readable, themeTemplate, TOKENS, type Colors } from "./themes";
+import { accentInk, BUILT_IN, contrast, DEFAULT_THEME_ID, parseThemeFile, POCKET, readable, themeTemplate, TOKENS, type Colors } from "./themes";
 
 const TEXT = ["ink", "muted", "ok", "err", "warn", "syn-keyword", "syn-string", "syn-number", "syn-comment", "syn-def"] as const;
 const json = (v: unknown) => new TextEncoder().encode(JSON.stringify(v));
@@ -11,6 +11,7 @@ function expectReadable(colors: Colors) {
     expect(contrast(colors[t], colors.sheet), `${t} on sheet`).toBeGreaterThanOrEqual(4.5);
     expect(contrast(colors[t], colors.bar), `${t} on bar`).toBeGreaterThanOrEqual(4.5);
   }
+  for (const t of ["ink", "muted"] as const) expect(contrast(colors[t], colors.paper), `${t} on paper`).toBeGreaterThanOrEqual(4.5);
   expect(contrast(colors["on-accent"], colors.accent), "Run button text").toBeGreaterThanOrEqual(4.5);
   expect(contrast(colors.accent, colors.sheet), "accent against the page").toBeGreaterThanOrEqual(3);
 }
@@ -41,6 +42,19 @@ describe("built-in themes", () => {
     expect(block).toContain(`scheme: "${theme.scheme}"`);
     const colors = readable(theme.colors!).colors;
     for (const t of TOKENS) expect(block, `--${t}`).toContain(`"${t}": "${colors[t]}"`);
+    expect(block, "--accent-ink").toContain(`"accent-ink": "${accentInk(colors)}"`);
+  });
+
+  it.each(BUILT_IN.filter((t) => t.colors).map((t) => [t.name, t] as const))("%s: accent text is readable, tinted chips included", (_, theme) => {
+    const colors = readable(theme.colors!).colors;
+    const ink = accentInk(colors);
+    const tint = (bg: string) => {
+      const [b, a] = [bg, colors.accent].map((h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)));
+      return `#${b.map((v, i) => Math.round(v * 0.88 + a[i] * 0.12).toString(16).padStart(2, "0")).join("")}`;
+    };
+    for (const bg of [colors.sheet, colors.bar, tint(colors.sheet), tint(colors.bar)]) {
+      expect(contrast(ink, bg), `accent-ink on ${bg}`).toBeGreaterThanOrEqual(4.5);
+    }
   });
 
   it("the guard keeps a theme's hue when it lifts a colour", () => {
