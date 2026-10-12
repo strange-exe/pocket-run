@@ -31,6 +31,9 @@ test("'match device' follows the system light/dark setting", async ({ page }) =>
   // cross-origin-isolated navigation (measured), though it applies it to a loaded page.
   const theme = () => page.evaluate(() => document.documentElement.dataset.theme);
   await openApp(page);
+  await page.locator("#theme-btn").click();
+  await page.getByRole("radio", { name: "Pocket Run (match device)" }).check();
+  await page.getByRole("button", { name: "Done" }).click();
   await page.emulateMedia({ colorScheme: "dark" });
   await expect.poll(theme).toBe("dark"); // switches live
   await page.reload();
@@ -60,7 +63,38 @@ test("a custom theme can be made from the template, loaded, kept and deleted", a
   await page.locator("#theme-btn").click();
   await page.getByRole("button", { name: "Delete Forest" }).click();
   await expect(page.getByRole("radio", { name: "Forest" })).toHaveCount(0);
-  await expect(page.getByRole("radio", { name: "Pocket Run (match device)" })).toBeChecked();
+  await expect(page.getByRole("radio", { name: /^Tokyo Night\b(?! Day)/ })).toBeChecked(); // back to the default
+});
+
+test("more themes start folded, and stay open when one of them is chosen", async ({ page }) => {
+  await openApp(page);
+  await page.locator("#theme-btn").click();
+  const nord = page.getByRole("radio", { name: "Nord" });
+  await expect(nord).toBeHidden();
+  await page.getByText(/^More themes \(\d+\)$/).click();
+  await nord.check();
+  expect(await bg(page)).toBe("rgb(46, 52, 64)"); // Nord background #2e3440
+  await page.getByRole("button", { name: "Done" }).click();
+  await page.reload();
+  await page.locator("#theme-btn").click();
+  await expect(page.getByRole("radio", { name: "Nord" })).toBeVisible();
+  await expect(page.getByRole("radio", { name: "Nord" })).toBeChecked();
+});
+
+test("a first visit gets Tokyo Night, painted before the app's code loads", async ({ page }) => {
+  // Hold every app script: only the start-up script can have painted the page.
+  let release!: () => void;
+  const held = new Promise<void>((r) => (release = r));
+  await page.route("**/assets/*.js", async (route) => { await held; await route.continue(); });
+  await page.goto("/", { waitUntil: "commit" });
+  await page.locator(".editor-pane").waitFor({ state: "attached" });
+  expect(await page.evaluate(() => document.documentElement.dataset.theme)).toBe("dark");
+  expect(await bg(page)).toBe("rgb(26, 27, 38)"); // Tokyo Night background #1a1b26
+  expect(await page.locator('meta[name="theme-color"]').first().getAttribute("content")).toBe("#16161e");
+  release();
+  await expect(page.locator("#status-dot")).toHaveAttribute("data-state", "ready", { timeout: 30_000 });
+  await page.locator("#theme-btn").click();
+  await expect(page.getByRole("radio", { name: /^Tokyo Night Default$/ })).toBeChecked();
 });
 
 test.describe("theme files that aren't safe are refused", () => {

@@ -1,6 +1,6 @@
 import { downloadFile } from "./files";
 import {
-  allThemes, BUILT_IN, chooseTheme, chosenTheme, deleteCustomTheme, MAX_THEME_BYTES, parseThemeFile, POCKET, readable,
+  allThemes, BUILT_IN, chooseTheme, chosenTheme, DEFAULT_THEME_ID, defaultTheme, deleteCustomTheme, MAX_THEME_BYTES, parseThemeFile, POCKET, readable,
   saveCustomTheme, themeTemplate, type Colors, type Theme, type Token,
 } from "./themes";
 
@@ -32,6 +32,7 @@ export function setupThemePicker(open: HTMLButtonElement, dialog: HTMLDialogElem
       swatches.append(s);
     }
     const name = Object.assign(document.createElement("span"), { className: "theme-name", textContent: theme.name });
+    if (theme.id === DEFAULT_THEME_ID) name.append(" ", Object.assign(document.createElement("span"), { className: "theme-default", textContent: "Default" }));
     row.append(radio, swatches, name);
     if (theme.custom) {
       const remove = Object.assign(document.createElement("button"), { type: "button", className: "theme-delete", textContent: "Delete" });
@@ -39,7 +40,7 @@ export function setupThemePicker(open: HTMLButtonElement, dialog: HTMLDialogElem
       remove.addEventListener("click", (e) => {
         e.preventDefault();
         deleteCustomTheme(theme.id);
-        if (chosenTheme().id === theme.id || current === theme.id) chooseTheme(BUILT_IN[0]);
+        if (chosenTheme().id === theme.id || current === theme.id) chooseTheme(defaultTheme());
         render();
         say(`Deleted “${theme.name}”.`);
       });
@@ -50,15 +51,28 @@ export function setupThemePicker(open: HTMLButtonElement, dialog: HTMLDialogElem
 
   function render() {
     const current = chosenTheme().id;
+    const pocket = new Set(["system", "pocket-light", "pocket-dark", "high-contrast"]);
+    const popular = BUILT_IN.filter((t) => !pocket.has(t.id) && !t.more)
+      .sort((a, b) => Number(b.id === DEFAULT_THEME_ID) - Number(a.id === DEFAULT_THEME_ID));
+    const more = BUILT_IN.filter((t) => t.more);
+    const heading = (text: string) => Object.assign(document.createElement("p"), { className: "theme-group", textContent: text });
     const groups: [string, Theme[]][] = [
-      ["Pocket Run", BUILT_IN.slice(0, 4)],
-      ["Popular editor themes", BUILT_IN.slice(4)],
+      ["Popular editor themes", popular],
+      ["Pocket Run", BUILT_IN.filter((t) => pocket.has(t.id))],
       ["Yours", allThemes().filter((t) => t.custom)],
     ];
-    list.replaceChildren(...groups.filter(([, themes]) => themes.length).flatMap(([title, themes]) => [
-      Object.assign(document.createElement("p"), { className: "theme-group", textContent: title }),
-      ...themes.map((t) => option(t, current)),
-    ]));
+    const folded = document.createElement("details");
+    folded.className = "theme-more";
+    folded.open = more.some((t) => t.id === current);
+    const summary = Object.assign(document.createElement("summary"), { textContent: `More themes (${more.length})` });
+    // Opening it at the bottom of the list would leave the new options out of sight (click covers Enter and Space too).
+    summary.addEventListener("click", () => requestAnimationFrame(() => { if (folded.open) folded.lastElementChild?.scrollIntoView({ block: "nearest" }); }));
+    folded.append(summary, ...more.map((t) => option(t, current)));
+    list.replaceChildren(
+      ...groups.slice(0, 2).flatMap(([title, themes]) => [heading(title), ...themes.map((t) => option(t, current))]),
+      folded,
+      ...groups.slice(2).filter(([, themes]) => themes.length).flatMap(([title, themes]) => [heading(title), ...themes.map((t) => option(t, current))]),
+    );
   }
 
   open.addEventListener("click", () => {

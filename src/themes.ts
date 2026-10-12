@@ -19,6 +19,8 @@ export interface Theme {
   /** Undefined for Pocket Run's own themes, whose colours live in tokens.css. */
   colors?: Colors;
   custom?: boolean;
+  /** Listed under "More themes" in the picker, which starts folded. */
+  more?: boolean;
 }
 
 const c = (
@@ -89,6 +91,72 @@ export const BUILT_IN: Theme[] = [
     id: "catppuccin-latte", name: "Catppuccin Latte", scheme: "light",
     colors: c("#dce0e8", "#eff1f5", "#e6e9ef", "#4c4f69", "#6c6f85", "#ccd0da", "#8839ef", "#eff1f5", "#40a02b", "#d20f39", "#df8e1d",
       "#8839ef", "#40a02b", "#fe640b", "#7c7f93", "#1e66f5"),
+  },
+  // More themes (official values read 2026-10-12; all MIT): Rosé Pine github.com/rose-pine/rose-pine-palette and
+  // rose-pine/vscode; Nord github.com/nordtheme/nord and nordtheme/visual-studio-code; Gruvbox github.com/morhetz/gruvbox
+  // (gruvbox-community/gruvbox, MIT); Kanagawa github.com/rebelot/kanagawa.nvim; Everforest github.com/sainnhe/everforest;
+  // Ayu github.com/ayu-theme/vscode-ayu; Night Owl github.com/sdras/night-owl-vscode-theme; Solarized
+  // ethanschoonover.com/solarized and altercation/vim-colors-solarized. Where an official colour misses AA contrast,
+  // readable() lifts it at run time (keeping its hue), as for every theme.
+  {
+    id: "rose-pine", name: "Rosé Pine", scheme: "dark", more: true,
+    colors: c("#191724", "#191724", "#1f1d2e", "#e0def4", "#908caa", "#403d52", "#ebbcba", "#191724", "#9ccfd8", "#eb6f92", "#f6c177",
+      "#31748f", "#f6c177", "#ebbcba", "#6e6a86", "#ebbcba"),
+  },
+  {
+    id: "rose-pine-dawn", name: "Rosé Pine Dawn", scheme: "light", more: true,
+    colors: c("#faf4ed", "#faf4ed", "#fffaf3", "#464261", "#797593", "#dfdad9", "#d7827e", "#faf4ed", "#56949f", "#b4637a", "#ea9d34",
+      "#286983", "#ea9d34", "#d7827e", "#9893a5", "#d7827e"),
+  },
+  {
+    id: "nord", name: "Nord", scheme: "dark", more: true,
+    colors: c("#2e3440", "#2e3440", "#3b4252", "#d8dee9", "#616e88", "#4c566a", "#88c0d0", "#2e3440", "#a3be8c", "#bf616a", "#ebcb8b",
+      "#81a1c1", "#a3be8c", "#b48ead", "#616e88", "#88c0d0"),
+  },
+  {
+    id: "gruvbox-dark", name: "Gruvbox Dark", scheme: "dark", more: true,
+    colors: c("#1d2021", "#282828", "#3c3836", "#ebdbb2", "#a89984", "#504945", "#fe8019", "#282828", "#b8bb26", "#fb4934", "#fabd2f",
+      "#fb4934", "#b8bb26", "#d3869b", "#928374", "#b8bb26"),
+  },
+  {
+    id: "gruvbox-light", name: "Gruvbox Light", scheme: "light", more: true,
+    colors: c("#f9f5d7", "#fbf1c7", "#ebdbb2", "#3c3836", "#7c6f64", "#d5c4a1", "#af3a03", "#fbf1c7", "#79740e", "#9d0006", "#b57614",
+      "#9d0006", "#79740e", "#8f3f71", "#928374", "#79740e"),
+  },
+  {
+    id: "kanagawa", name: "Kanagawa", scheme: "dark", more: true,
+    colors: c("#16161d", "#1f1f28", "#2a2a37", "#dcd7ba", "#c8c093", "#363646", "#7e9cd8", "#16161d", "#98bb6c", "#e82424", "#ff9e3b",
+      "#957fb8", "#98bb6c", "#d27e99", "#727169", "#7e9cd8"),
+  },
+  {
+    id: "everforest-dark", name: "Everforest Dark", scheme: "dark", more: true,
+    colors: c("#232a2e", "#2d353b", "#343f44", "#d3c6aa", "#9da9a0", "#4f585e", "#a7c080", "#2d353b", "#a7c080", "#e67e80", "#dbbc7f",
+      "#e67e80", "#a7c080", "#d699b6", "#859289", "#a7c080"),
+  },
+  {
+    id: "ayu-dark", name: "Ayu Dark", scheme: "dark", more: true,
+    colors: c("#0d1017", "#10141c", "#141821", "#bfbdb6", "#5a6378", "#1b1f29", "#e6b450", "#765b24", "#70bf56", "#d95757", "#e6b450",
+      "#ff8f40", "#aad94c", "#d2a6ff", "#5a6673", "#ffb454"),
+  },
+  {
+    id: "ayu-mirage", name: "Ayu Mirage", scheme: "dark", more: true,
+    colors: c("#1f2430", "#242936", "#282e3b", "#cccac2", "#707a8c", "#171b24", "#ffcc66", "#735923", "#87d96c", "#ff6666", "#ffcc66",
+      "#ffa659", "#d5ff80", "#dfbfff", "#6e7c8f", "#ffcd66"),
+  },
+  {
+    id: "night-owl", name: "Night Owl", scheme: "dark", more: true,
+    colors: c("#011627", "#011627", "#0b2942", "#d6deeb", "#89a4bb", "#5f7e97", "#7e57c2", "#ffffff", "#22da6e", "#ef5350", "#ffeb95",
+      "#c792ea", "#ecc48d", "#f78c6c", "#637777", "#82aaff"),
+  },
+  {
+    id: "solarized-dark", name: "Solarized Dark", scheme: "dark", more: true,
+    colors: c("#002b36", "#002b36", "#073642", "#839496", "#586e75", "#073642", "#268bd2", "#002b36", "#859900", "#dc322f", "#b58900",
+      "#859900", "#2aa198", "#2aa198", "#586e75", "#268bd2"),
+  },
+  {
+    id: "solarized-light", name: "Solarized Light", scheme: "light", more: true,
+    colors: c("#fdf6e3", "#fdf6e3", "#eee8d5", "#657b83", "#93a1a1", "#eee8d5", "#268bd2", "#002b36", "#859900", "#dc322f", "#b58900",
+      "#859900", "#2aa198", "#2aa198", "#93a1a1", "#268bd2"),
   },
 ];
 
@@ -228,9 +296,13 @@ export function allThemes(): Theme[] {
   return [...BUILT_IN, ...customThemes()];
 }
 
+/** The theme for anyone who hasn't chosen one. public/theme-boot.js paints its colours before the app loads. */
+export const DEFAULT_THEME_ID = "tokyo-night";
+export const defaultTheme = (): Theme => BUILT_IN.find((t) => t.id === DEFAULT_THEME_ID)!;
+
 export function chosenTheme(): Theme {
-  const id = storage.get(CHOSEN_KEY) ?? "system";
-  return allThemes().find((t) => t.id === id) ?? BUILT_IN[0];
+  const id = storage.get(CHOSEN_KEY) ?? DEFAULT_THEME_ID;
+  return allThemes().find((t) => t.id === id) ?? defaultTheme();
 }
 
 const prefersDark = () => matchMedia("(prefers-color-scheme: dark)").matches;

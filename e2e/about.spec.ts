@@ -1,5 +1,5 @@
 import { AxeBuilder } from "@axe-core/playwright";
-import { expect, openApp, test } from "./helpers";
+import { expect, followDeviceTheme, openApp, test } from "./helpers";
 
 // DESIGN.md §6 matrix for the about page: desktop + mobile, light + dark, reduced motion, axe,
 // overflow, primary action above the fold, grayscale + blur hierarchy shots.
@@ -14,6 +14,7 @@ const shots = process.env.SHOTS_DIR ?? "e2e/shots/after";
  * cross-origin-isolated navigation (see themes.spec.ts), so load, emulate, reload, and check it took.
  */
 async function openAbout(page: import("@playwright/test").Page, scheme: "light" | "dark", reducedMotion?: "reduce") {
+  await followDeviceTheme(page);
   await page.goto("/about/");
   await page.emulateMedia({ colorScheme: scheme, ...(reducedMotion ? { reducedMotion } : {}) });
   await page.reload();
@@ -33,9 +34,13 @@ for (const vp of viewports) {
       await expect(page.getByRole("heading", { level: 1 })).toBeInViewport();
       await expect(page.locator(".hero").getByRole("link", { name: "Open Pocket Run" })).toBeInViewport();
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
-      // The screenshot matching the theme is the one shown.
-      const image = await page.locator(".shot").evaluate((el) => getComputedStyle(el).backgroundImage);
-      expect(image).toContain(`app-${scheme}.webp`);
+      // The phone is drawn in HTML, so it wears the current theme: its screen is the page's own sheet colour.
+      await expect(page.locator(".phone")).toBeVisible();
+      const [screen, body] = await page.evaluate(() => [
+        getComputedStyle(document.querySelector(".screen")!).backgroundColor,
+        getComputedStyle(document.body).backgroundColor,
+      ]);
+      expect(screen).toBe(body);
 
       const dir = `${shots}/${testInfo.project.name}`;
       await page.screenshot({ path: `${dir}/about-${vp.name}-${scheme}.png`, fullPage: true, animations: "disabled" });
@@ -73,23 +78,26 @@ test("the about page follows the theme chosen in the app", async ({ page }) => {
   await page.getByRole("radio", { name: "Dracula" }).check();
   await page.goto("/about/");
   expect(await page.evaluate(() => document.documentElement.dataset.theme)).toBe("dark");
-  expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe("rgb(33, 34, 44)"); // Dracula paper
+  expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe("rgb(40, 42, 54)"); // Dracula sheet
 });
 
-test("the about page works offline, screenshot included", async ({ page, context }) => {
+test("a first visit to the about page gets the default theme, Tokyo Night", async ({ page }) => {
+  await page.goto("/about/");
+  expect(await page.evaluate(() => document.documentElement.dataset.theme)).toBe("dark");
+  expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe("rgb(26, 27, 38)"); // #1a1b26
+  const axe = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"]).analyze();
+  expect(axe.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`)).toEqual([]);
+});
+
+test("the about page works offline", async ({ page, context }) => {
   await openApp(page);
   // The app's own signal that the service worker has precached everything (as in offline.spec.ts).
   await expect(page.locator("#status-text")).toContainText("works offline", { timeout: 60_000 });
   await context.setOffline(true);
   await page.goto("/about/");
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-  const loaded = await page.evaluate(() => new Promise<boolean>((resolve) => {
-    const img = new Image();
-    img.onload = () => resolve(true);
-    img.onerror = () => resolve(false);
-    img.src = "/about/app-light.webp";
-  }));
-  expect(loaded).toBe(true);
+  // Styled too (the stylesheet came from the cache): the phone is laid out, not bare text.
+  expect(await page.locator(".phone").evaluate((el) => getComputedStyle(el).borderRadius)).toBe("44px");
 });
 
 test("the about page loads no script besides the theme starter", async ({ page }) => {

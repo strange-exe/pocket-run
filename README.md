@@ -30,8 +30,9 @@ New here? [pocket-run.pages.dev/about/](https://pocket-run.pages.dev/about/) exp
 Your current file is kept on the device between visits. On phones, a bar of hard-to-reach symbols
 (`{ } [ ] ( ) ; " < > \ …`, Tab and cursor keys) sits above the keyboard while you edit code.
 
-**Colour themes** (the palette button at the top): Pocket Run's own light, dark and high-contrast themes, plus
-popular editor themes (GitHub-style, One Dark Pro, Dracula, Tokyo Night, Catppuccin). You can also load your own:
+**Colour themes** (the palette button at the top): Tokyo Night by default, popular editor themes (GitHub-style,
+One Dark Pro, Dracula, Tokyo Night Day, Catppuccin), Pocket Run's own light, dark and high-contrast themes, and under
+**More themes** Rosé Pine, Nord, Gruvbox, Kanagawa, Everforest, Ayu, Night Owl and Solarized. You can also load your own:
 **Get template** saves the current colours as a small JSON file; change the `#rrggbb` values and load it back. Themes
 are kept on the device, and any colour too faint to read is darkened or lightened (keeping its hue) until it meets
 WCAG AA contrast.
@@ -121,8 +122,8 @@ Before `dev` and `build`, two scripts prepare the runtimes in `public/` (git-ign
 gzipped pack to `public/clang/<commit>/`.
 
 The about page (`about/index.html`, `src/about.css`) is static and shares the app's tokens and themes
-(`src/tokens.css`). Its phone screenshots are rendered from the real app: run `npm run build`, then
-`node scripts/make-about-shots.mjs` after a visible UI change.
+(`src/tokens.css`). Its phone is drawn in HTML and CSS rather than a screenshot, so it follows every theme and needs no
+image files.
 
 ### Testing on Android (emulator or USB device)
 
@@ -163,3 +164,8 @@ MIT. See [LICENSE](LICENSE).
   (Apache License 2.0), [One Dark Pro](https://github.com/Binaryify/OneDark-Pro) (MIT), and the
   [GitHub VS Code theme](https://github.com/primer/github-vscode-theme) (MIT). "GitHub" is a trademark of GitHub, Inc.;
   the theme is labelled "GitHub-style" and is not affiliated with or endorsed by GitHub.
+  Also (all MIT): [Rosé Pine](https://github.com/rose-pine/rose-pine-palette), [Nord](https://github.com/nordtheme/nord),
+  [Gruvbox](https://github.com/morhetz/gruvbox) (MIT/X11 per its README; [gruvbox-community](https://github.com/gruvbox-community/gruvbox)),
+  [Kanagawa](https://github.com/rebelot/kanagawa.nvim), [Everforest](https://github.com/sainnhe/everforest),
+  [Ayu](https://github.com/ayu-theme/vscode-ayu), [Night Owl](https://github.com/sdras/night-owl-vscode-theme) and
+  [Solarized](https://ethanschoonover.com/solarized/).

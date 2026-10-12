@@ -1,4 +1,4 @@
-import { expect, openApp, run, test } from "./helpers";
+import { expect, followDeviceTheme, openApp, run, test } from "./helpers";
 
 // DESIGN.md §6 matrix: desktop + mobile × light + dark, plus one reduced-motion run.
 const viewports = [
@@ -11,9 +11,14 @@ for (const vp of viewports) {
   for (const scheme of ["light", "dark"] as const) {
     test(`layout ${vp.name} ${scheme}`, async ({ page }, testInfo) => {
       const dir = `${shots}/${testInfo.project.name}`;
-      await page.emulateMedia({ colorScheme: scheme });
+      await followDeviceTheme(page);
       await page.setViewportSize(vp);
+      // Load, emulate, reload, then check the theme took (Firefox drops an earlier emulation).
       await openApp(page);
+      await page.emulateMedia({ colorScheme: scheme });
+      await page.reload();
+      await expect(page.locator("#status-dot")).toHaveAttribute("data-state", "ready", { timeout: 30_000 });
+      expect(await page.evaluate(() => document.documentElement.dataset.theme)).toBe(scheme);
 
       // Above the fold: what it is, who/why (tagline), and the primary action.
       await expect(page.getByRole("heading", { level: 1 })).toBeInViewport();

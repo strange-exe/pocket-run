@@ -1,7 +1,7 @@
 /// <reference types="node" />
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { BUILT_IN, contrast, parseThemeFile, POCKET, readable, themeTemplate, TOKENS, type Colors } from "./themes";
+import { BUILT_IN, contrast, DEFAULT_THEME_ID, parseThemeFile, POCKET, readable, themeTemplate, TOKENS, type Colors } from "./themes";
 
 const TEXT = ["ink", "muted", "ok", "err", "warn", "syn-keyword", "syn-string", "syn-number", "syn-comment", "syn-def"] as const;
 const json = (v: unknown) => new TextEncoder().encode(JSON.stringify(v));
@@ -32,6 +32,15 @@ describe("built-in themes", () => {
     for (const [scheme, selector] of [["light", ":root {"], ["dark", ':root[data-theme="dark"] {']] as const) {
       for (const t of TOKENS) expect(block(selector), `${scheme} --${t}`).toContain(`--${t}: ${POCKET[scheme][t]};`);
     }
+  });
+
+  it("the start-up script paints the default theme's colours (no flash on a first visit)", () => {
+    const boot = readFileSync("public/theme-boot.js", "utf8");
+    const block = boot.slice(boot.indexOf("var DEFAULT"), boot.indexOf("} };"));
+    const theme = BUILT_IN.find((t) => t.id === DEFAULT_THEME_ID)!;
+    expect(block).toContain(`scheme: "${theme.scheme}"`);
+    const colors = readable(theme.colors!).colors;
+    for (const t of TOKENS) expect(block, `--${t}`).toContain(`"${t}": "${colors[t]}"`);
   });
 
   it("the guard keeps a theme's hue when it lifts a colour", () => {

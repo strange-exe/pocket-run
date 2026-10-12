@@ -134,8 +134,8 @@ export default defineConfig(({ mode }) => ({
         name: "Pocket Run",
         short_name: "Pocket Run",
         description: "Run Python, C and C++ files on your phone, even offline.",
-        theme_color: "#0B0E13",
-        background_color: "#0B0E13",
+        theme_color: "#16161E",
+        background_color: "#16161E",
         display: "standalone",
         start_url: "/",
         icons: [
@@ -146,7 +146,7 @@ export default defineConfig(({ mode }) => ({
       },
       workbox: {
         // The Python runtime is precached so the first visit makes the app work offline.
-        globPatterns: ["**/*.{js,mjs,css,html,svg,png,webp,woff2,wasm,zip,json}"],
+        globPatterns: ["**/*.{js,mjs,css,html,svg,png,woff2,wasm,zip,json}"],
         // The C/C++ pack (~20 MB) is opt-in: the compiler worker downloads it into its own cache.
         globIgnores: ["clang/**"],
         maximumFileSizeToCacheInBytes: 12 * 1024 * 1024,

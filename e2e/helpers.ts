@@ -44,6 +44,17 @@ export { expect };
  */
 export const tolerating = (...patterns: RegExp[]) => ({ tolerate: [patterns, { scope: "test" }] as unknown as RegExp[] });
 
+/**
+ * Chooses "Pocket Run (match device)" before any page loads, as if picked in the theme dialog, so
+ * the emulated light/dark setting decides the colours. The default theme (Tokyo Night) is always dark.
+ */
+export async function followDeviceTheme(page: Page) {
+  await page.addInitScript(() => {
+    localStorage.setItem("pocket-run:theme", "system");
+    localStorage.setItem("pocket-run:theme-paint", JSON.stringify({ system: true, scheme: "light", colors: null }));
+  });
+}
+
 export async function openApp(page: Page) {
   await page.goto("/");
   // Wait on state, not wording: loading messages can contain the word "ready" too.
