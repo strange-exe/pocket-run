@@ -70,7 +70,9 @@ export class CppRunner {
         else this.setState("idle");
       }
       if (data.type === "progress") { this.progress = { loaded: data.loaded, total: data.total }; this.onState?.(this.state); }
-      if (data.type === "download-failed") { this.error = data.error; this.setState("absent"); }
+      // A failed download must always say so (the page offers "Try again" only when there is a reason):
+      // with a blank reason the Download button would just come back, as if the press did nothing.
+      if (data.type === "download-failed") { this.error = data.error || "the download was interrupted"; this.setState("absent"); }
     });
     this.send({ type: "check" });
   }

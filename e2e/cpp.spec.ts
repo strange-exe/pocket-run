@@ -1,19 +1,33 @@
 import type { Page } from "@playwright/test";
 import { expect, openApp, openFile, run, test } from "./helpers";
 
-/** Installs the C/C++ pack the way a student does: open a C file, press Download. */
+/**
+ * Installs the C/C++ pack the way a student does: open a C file, press Download. If the download stops (WebKit
+ * on this machine occasionally fails a local fetch with "Load failed"; the app then offers "Try again" and keeps
+ * finished parts), press Try again once, as a student would, and record why on the test.
+ */
 async function installCpp(page: Page) {
   await openFile(page, "main.c", "int main(void) { return 0; }\n");
   await expect(page.locator("#pack-offer")).toBeVisible();
   await page.locator("#pack-button").click();
-  await expect(page.locator("#status-dot")).toHaveAttribute("data-state", "ready", { timeout: 60_000 });
+  const ready = page.locator('#status-dot[data-state="ready"]');
+  const retry = page.locator("#pack-button", { hasText: "Try again" });
+  await expect(ready.or(retry)).toBeVisible({ timeout: 30_000 });
+  if (await retry.isVisible()) {
+    test.info().annotations.push({ type: "pack-retry", description: (await page.locator("#pack-text").textContent()) ?? "" });
+    await retry.click();
+  }
+  await expect(page.locator("#status-dot")).toHaveAttribute("data-state", "ready", { timeout: 30_000 });
   await expect(page.locator("#pack-offer")).toBeHidden();
 }
 
 test.describe("C and C++", () => {
-  test.beforeEach(async ({ page }) => {
+  // The install time is recorded on each test (normally about 3 s in WebKit), so a stall shows up as data.
+  test.beforeEach(async ({ page }, testInfo) => {
     await openApp(page);
+    const started = Date.now();
     await installCpp(page);
+    testInfo.annotations.push({ type: "pack-install-ms", description: String(Date.now() - started) });
   });
 
   const cases: [string, string, string, string, string][] = [
@@ -197,4 +211,34 @@ test("after installing, C/C++ works with no network", async ({ page, context }) 
   await expect(page.locator("#status-dot")).toHaveAttribute("data-state", "ready", { timeout: 60_000 });
   const r = await run(page, "main.cpp", '#include <iostream>\nint main() { std::cout << 6 * 7 << "\\n"; }');
   expect(r.output).toBe("42\n");
+});
+
+test.describe("a download that stops", () => {
+  // Requests answered by the service worker can't be held back by context.route(); keep it out.
+  test.use({ serviceWorkers: "block" });
+  // The worker tries each file 3 times (clang.worker.ts download()); cut off the first `failures` requests.
+  const cutOff = async (context: import("@playwright/test").BrowserContext, failures: number) => {
+    let n = 0;
+    await context.route("**/clang/**", (route) => (n++ < failures ? route.abort("connectionreset") : route.continue()));
+    return () => n;
+  };
+
+  test("one dropped request is retried without bothering the student", async ({ page, context }) => {
+    const requests = await cutOff(context, 1);
+    await openApp(page);
+    await installCpp(page);
+    expect(test.info().annotations.some((a) => a.type === "pack-retry"), "no Try again needed").toBe(false);
+    expect(requests()).toBeGreaterThan(1);
+  });
+
+  test("when retries run out it says so, and Try again installs it", async ({ page, context }) => {
+    await cutOff(context, 3);
+    await openApp(page);
+    await openFile(page, "main.c", "int main(void) { return 0; }\n");
+    await page.locator("#pack-button").click();
+    await expect(page.locator("#pack-text")).toContainText("The download stopped", { timeout: 20_000 });
+    await expect(page.locator("#status-dot")).toHaveAttribute("data-state", "absent");
+    await page.locator("#pack-button", { hasText: "Try again" }).click();
+    await expect(page.locator("#status-dot")).toHaveAttribute("data-state", "ready", { timeout: 30_000 });
+  });
 });

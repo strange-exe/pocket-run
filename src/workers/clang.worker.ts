@@ -260,6 +260,10 @@ function explain(text: string): string {
   return text;
 }
 
+/** A failure's reason for the student, never empty: browsers can reject with a blank message or a non-Error. */
+const reason = (e: unknown, fallback: string) =>
+  (e instanceof Error && e.message) || (typeof e === "string" && e) || fallback;
+
 self.onmessage = async ({ data }: MessageEvent<ToCompiler>) => {
   switch (data.type) {
     case "check":
@@ -270,7 +274,7 @@ self.onmessage = async ({ data }: MessageEvent<ToCompiler>) => {
         await download();
         post({ type: "pack", installed: true });
       } catch (e) {
-        post({ type: "download-failed", error: (e as Error).message });
+        post({ type: "download-failed", error: reason(e, "the connection was interrupted") });
       }
       return;
     case "boot": {
@@ -281,7 +285,7 @@ self.onmessage = async ({ data }: MessageEvent<ToCompiler>) => {
         post({ type: "ready", ms: performance.now() - t0 });
       } catch (e) {
         booting = null;
-        post({ type: "boot-failed", error: (e as Error).message });
+        post({ type: "boot-failed", error: reason(e, "the compiler could not be loaded") });
       }
       return;
     }
