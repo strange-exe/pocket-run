@@ -5,6 +5,7 @@ Run a single Python, C or C++ file on your phone, even with no internet.
 Pocket Run is for students who need to check a program's output quickly, on a phone, on a weak connection.
 Everything runs **inside the browser**: there is no server that executes code, so after the first visit the app
 works offline and a runaway program can only ever affect its own browser tab.
+New here? [pocket-run.pages.dev/about/](https://pocket-run.pages.dev/about/) explains it in a minute.
 
 | Language | Runtime | Download | Offline |
 |---|---|---|---|
@@ -118,6 +119,10 @@ Before `dev` and `build`, two scripts prepare the runtimes in `public/` (git-ign
 `scripts/copy-pyodide.mjs` copies Pyodide from `node_modules/pyodide` into `public/pyodide/<version>/`, and
 `scripts/fetch-clang.mjs` downloads the C/C++ toolchain at a pinned commit, verifies its SHA-256 hashes, and writes the
 gzipped pack to `public/clang/<commit>/`.
+
+The about page (`about/index.html`, `src/about.css`) is static and shares the app's tokens and themes
+(`src/tokens.css`). Its phone screenshots are rendered from the real app: run `npm run build`, then
+`node scripts/make-about-shots.mjs` after a visible UI change.
 
 ### Testing on Android (emulator or USB device)
 

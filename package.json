@@ -27,6 +27,7 @@
     "pyodide": "314.0.7"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@phosphor-icons/core": "^2.1.1",
     "@playwright/test": "^1.64.0",
     "@types/node": "^24.19.1",

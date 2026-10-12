@@ -1,81 +1,7 @@
 /* Pocket Run: a calm, professional code runner. Cool graphite neutrals, one emerald accent (Run, focus,
    live input). Shape rule: controls 6px, panels 10px, status chips full pill. */
 
-@font-face {
-  font-family: "Geist";
-  font-style: normal;
-  font-display: swap;
-  font-weight: 100 900;
-  src: url("@fontsource-variable/geist/files/geist-latin-wght-normal.woff2") format("woff2-variations");
-}
-@font-face {
-  font-family: "JetBrains Mono";
-  font-style: normal;
-  font-display: swap;
-  font-weight: 100 800;
-  src: url("@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2") format("woff2-variations");
-}
-
-:root {
-  color-scheme: light;
-  --font-ui: "Geist", ui-sans-serif, system-ui, sans-serif;
-  --font-code: "JetBrains Mono", ui-monospace, monospace;
-
-  /* Base colours: Pocket Run Light. Other themes override these (src/themes.ts); keep the two in sync. */
-  --paper: #eef1f5;   /* app background */
-  --sheet: #fbfcfd;   /* editor and panels */
-  --bar: #f4f6f9;     /* panel header strips, Run dock */
-  --ink: #131922;
-  --muted: #5a6475;
-  --rule: #dde2e9;    /* hairlines */
-  --accent: #0a7d55;
-  --on-accent: #ffffff;
-  --ok: #0a7d55;
-  --err: #c42b2b;
-  --warn: #8f5600;
-  --syn-keyword: #a8326e;
-  --syn-string: #8f5600;
-  --syn-number: #1d63c7;
-  --syn-comment: #667080;
-  --syn-def: #0b7489;
-
-  /* Derived from the base colours, so every theme gets them. */
-  --edge: color-mix(in srgb, var(--ink) 18%, var(--sheet));    /* button borders */
-  --field: color-mix(in srgb, var(--muted) 85%, var(--sheet)); /* text-field borders, 3:1 or more */
-  --hover: color-mix(in srgb, var(--ink) 6%, transparent);
-  --accent-hover: color-mix(in srgb, var(--accent) 84%, var(--ink));
-  --accent-soft: color-mix(in srgb, var(--accent) 12%, transparent);
-  --accent-ink: color-mix(in srgb, var(--accent) 78%, var(--ink)); /* accent text on --accent-soft */
-  --err-soft: color-mix(in srgb, var(--err) 10%, transparent);
-  --active-line: color-mix(in srgb, var(--ink) 4%, transparent);
-  --selection: color-mix(in srgb, var(--accent) 22%, transparent);
-
-  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px;
-  --code-size: 16px; /* 16px stops iOS zooming into the editor on focus */
-  --radius: 6px;
-  --radius-panel: 10px;
-}
-
-/* data-theme is set before first paint by the start-up script in index.html. */
-:root[data-theme="dark"] {
-  color-scheme: dark;
-  --paper: #0b0e13;
-  --sheet: #12161d;
-  --bar: #171c24;
-  --ink: #e4e8ee;
-  --muted: #95a0b0;
-  --rule: #232a35;
-  --accent: #3ecf8e;
-  --on-accent: #052116;
-  --ok: #3ecf8e;
-  --err: #ff7b72;
-  --warn: #e7b86e;
-  --syn-keyword: #ee8fcb;
-  --syn-string: #e7b86e;
-  --syn-number: #79b8ff;
-  --syn-comment: #7b8697;
-  --syn-def: #56d0e0;
-}
+@import "./tokens.css";
 
 *, *::before, *::after { box-sizing: border-box; }
 
@@ -113,10 +39,11 @@ button, input, textarea { font: inherit; color: inherit; }
 
 .masthead {
   display: grid;
-  grid-template-columns: 1fr auto;
-  grid-template-areas: "brand status" "tagline tagline";
+  /* Phone: name and actions on one row, then what it is, then the runtime status (never truncated). */
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "brand actions" "tagline tagline" "status status";
   align-items: center;
-  gap: 2px var(--s3);
+  gap: var(--s1) var(--s3);
   padding-bottom: var(--s3);
 }
 
@@ -130,6 +57,7 @@ button, input, textarea { font: inherit; color: inherit; }
   font-weight: 650;
   letter-spacing: -0.02em;
   line-height: 1.2;
+  white-space: nowrap;
 }
 .mark { width: 22px; height: 22px; flex: none; }
 
@@ -141,36 +69,38 @@ button, input, textarea { font: inherit; color: inherit; }
   text-wrap: pretty;
 }
 
-/* Runtime state: a real status indicator, so the dot carries meaning. */
-.masthead-end {
-  grid-area: status;
-  display: flex;
+/* About and Theme: icon buttons on phones (44px targets), labelled buttons on desktop. */
+.masthead-actions { grid-area: actions; display: flex; align-items: center; gap: var(--s1); margin-right: -8px; }
+.head-btn {
+  display: inline-flex;
   align-items: center;
-  gap: var(--s2);
-  justify-self: end;
-  min-width: 0;
-}
-.icon-btn {
-  display: inline-grid;
-  place-items: center;
-  flex: none;
-  width: 44px;
-  height: 44px;
-  margin: -6px -8px -6px 0; /* full touch target without making the header taller */
+  justify-content: center;
+  gap: 6px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 var(--s2);
   border: 0;
   border-radius: var(--radius);
   background: none;
   color: var(--muted);
-  font-size: 1.125rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-decoration: none;
   cursor: pointer;
 }
-.icon-btn:hover { background: var(--hover); color: var(--ink); }
+.head-btn .icon { width: 1.25rem; height: 1.25rem; }
+.head-btn:hover { background: var(--hover); color: var(--ink); }
+.head-btn-label { display: none; }
 
+/* Runtime state: a real status indicator, so the dot carries meaning. */
 .status {
+  grid-area: status;
+  justify-self: start;
   display: inline-flex;
   align-items: center;
   gap: 6px;
   min-width: 0;
+  max-width: 100%;
   margin: 0;
   padding: 3px 10px 3px 8px;
   border: 1px solid var(--rule);
@@ -407,6 +337,49 @@ button, input, textarea { font: inherit; color: inherit; }
 .output .echo.muted { color: var(--muted); font-weight: 400; font-style: italic; }
 .output:empty::before { content: "Nothing printed yet."; color: var(--muted); }
 
+/* First visit only: a short note where the output will appear (not a popup; nothing to dismiss first). */
+.welcome {
+  position: relative;
+  display: grid;
+  gap: var(--s1);
+  padding: var(--s3) 44px var(--s3) var(--s4);
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--rule));
+  border-radius: var(--radius);
+  background: var(--accent-soft);
+  font-size: 0.9375rem;
+}
+.welcome[hidden] { display: none; }
+.welcome p { margin: 0; max-width: 52ch; }
+.welcome-title { font-weight: 650; }
+.welcome-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  justify-self: start;
+  min-height: 44px;
+  color: var(--accent-ink);
+  font-weight: 600;
+  text-underline-offset: 3px;
+}
+.welcome-close {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+.welcome-close:hover { background: var(--hover); color: var(--ink); }
+/* While the note shows, the empty output's own placeholder would just repeat it. */
+.welcome:not([hidden]) ~ .output:empty,
+.printout:has(.welcome:not([hidden])) .receipt { display: none; }
+
 .live-input {
   display: grid;
   gap: var(--s2);
@@ -615,13 +588,16 @@ button, input, textarea { font: inherit; color: inherit; }
     padding: var(--s3) var(--s5) var(--s5);
   }
   .masthead {
-    grid-template-columns: auto 1fr auto;
-    grid-template-areas: "brand tagline status";
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    grid-template-areas: "brand tagline status actions";
     gap: var(--s4);
     padding: var(--s1) 0 var(--s3);
   }
   .tagline { padding-left: var(--s4); border-left: 1px solid var(--rule); }
-  .status { white-space: nowrap; }
+  .status { justify-self: end; white-space: nowrap; }
+  .masthead-actions { gap: var(--s1); padding-left: var(--s3); border-left: 1px solid var(--rule); margin-right: 0; }
+  .head-btn { min-height: 36px; padding: 0 var(--s3); }
+  .head-btn-label { display: inline; }
   .bench {
     flex: 1;
     min-height: 0;
@@ -659,7 +635,7 @@ button, input, textarea { font: inherit; color: inherit; }
 }
 /* Wide touch screens (tablets) keep full-size touch targets. */
 @media (min-width: 900px) and (pointer: coarse) {
-  .filename input, .file-actions .tool { min-height: 44px; }
+  .filename input, .file-actions .tool, .head-btn { min-height: 44px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

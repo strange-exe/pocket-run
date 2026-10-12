@@ -1,0 +1,205 @@
+/* About page. Same tokens, fonts and themes as the app (tokens.css); static, no scripts besides theme-boot.js.
+   Reading order: 1 headline + "Open Pocket Run", 2 the real app screenshot, 3 what it does (offline first).
+   Shape rule as the app: controls 6px, panels 10px, chips full pill. */
+
+@import "./tokens.css";
+
+*, *::before, *::after { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+html, body { margin: 0; }
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font: 400 1.0625rem/1.6 var(--font-ui);
+  -webkit-text-size-adjust: 100%;
+  -webkit-font-smoothing: antialiased;
+}
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 2px; }
+h1, h2, h3 { margin: 0; letter-spacing: -0.02em; text-wrap: balance; }
+p { margin: 0; text-wrap: pretty; }
+code { font: 500 0.92em var(--font-code); }
+a { color: inherit; }
+.icon { width: 1.25em; height: 1.25em; flex: none; }
+
+.wrap { width: min(1120px, 100% - 2 * var(--s4)); margin-inline: auto; }
+@media (min-width: 900px) { .wrap { width: min(1120px, 100% - 2 * var(--s6)); } }
+
+/* ---------- buttons ---------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s2);
+  min-height: 48px;
+  padding: 0 var(--s5);
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  font-size: 1rem;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background-color 120ms, border-color 120ms;
+}
+.btn:active { transform: translateY(1px); }
+.btn-primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.btn-primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+.btn-ghost { border-color: var(--edge); color: var(--ink); background: var(--sheet); }
+.btn-ghost:hover { background: var(--hover); border-color: var(--field); }
+.btn-small { min-height: 44px; padding: 0 var(--s4); font-size: 0.9375rem; }
+@media (prefers-reduced-motion: reduce) { .btn { transition: none; } }
+
+/* ---------- nav ---------- */
+.nav { border-bottom: 1px solid var(--rule); }
+.nav-row { display: flex; align-items: center; gap: var(--s5); min-height: 64px; }
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+  margin-right: auto;
+  min-height: 44px;
+  font-size: 1.125rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  text-decoration: none;
+}
+.mark { width: 22px; height: 22px; flex: none; }
+.nav-links { display: none; gap: var(--s5); }
+.nav-links a { color: var(--muted); font-size: 0.9375rem; font-weight: 500; text-decoration: none; padding: var(--s2) 0; }
+.nav-links a:hover { color: var(--ink); }
+@media (min-width: 720px) { .nav-links { display: flex; } }
+
+/* ---------- hero: copy left, the real app right ---------- */
+.hero {
+  display: grid;
+  gap: var(--s6);
+  padding-block: clamp(2.5rem, 6vw, 5rem) clamp(3rem, 7vw, 6rem);
+}
+.hero-copy { display: grid; gap: var(--s5); align-content: center; }
+.hero h1 { font-size: clamp(2.125rem, 1.4rem + 3.2vw, 3.5rem); line-height: 1.08; font-weight: 680; max-width: 18ch; }
+.lede { max-width: 46ch; font-size: clamp(1.0625rem, 1rem + 0.3vw, 1.25rem); color: var(--muted); }
+.cta-row { display: flex; flex-wrap: wrap; gap: var(--s3); }
+.hero-shot { margin: 0; display: grid; place-items: center; }
+/* A solid tinted stage, not a gradient: it gives the screenshot a place to sit. */
+.phone {
+  position: relative;
+  width: min(300px, 78vw);
+  padding: 10px;
+  border-radius: 28px;
+  background: var(--sheet);
+  border: 1px solid var(--rule);
+  box-shadow: 0 0 0 10px var(--accent-soft);
+}
+.shot {
+  aspect-ratio: 390 / 860;
+  border-radius: 18px;
+  background: var(--bar) url("/about/app-light.webp") top center / cover no-repeat;
+}
+:root[data-theme="dark"] .shot { background-image: url("/about/app-dark.webp"); }
+@media (min-width: 900px) {
+  .hero { grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr); align-items: center; }
+  .phone { width: 320px; }
+}
+
+/* ---------- features: a gapless bento (2x2 + full row on desktop, one column on phones) ---------- */
+section h2 { font-size: clamp(1.625rem, 1.2rem + 1.6vw, 2.25rem); line-height: 1.15; font-weight: 650; }
+.features, .how, .safety { padding-block: clamp(3rem, 7vw, 6rem); border-top: 1px solid var(--rule); }
+.features h2, .how h2 { margin-bottom: var(--s6); max-width: 24ch; }
+.bento { display: grid; gap: var(--s3); grid-auto-flow: dense; }
+.cell {
+  display: grid;
+  align-content: start;
+  gap: var(--s3);
+  padding: var(--s5);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-panel);
+  background: var(--sheet);
+}
+.cell > .icon { color: var(--accent-ink); width: 28px; height: 28px; }
+.cell h3 { font-size: 1.1875rem; font-weight: 650; line-height: 1.25; }
+.cell p { color: var(--muted); max-width: 52ch; }
+.cell-offline { background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 30%, var(--rule)); }
+.cell-offline h3 { font-size: clamp(1.5rem, 1.2rem + 1vw, 2rem); }
+.cell-offline p { color: var(--ink); }
+.cell-offline .cell-note { font-size: 0.9375rem; color: var(--muted); }
+.exts { display: flex; flex-wrap: wrap; gap: var(--s2); margin: 0; padding: 0; list-style: none; }
+.exts li {
+  padding: 4px 14px;
+  border-radius: 999px;
+  background: var(--bar);
+  border: 1px solid var(--rule);
+  font: 600 1rem var(--font-code);
+}
+.mini-term {
+  margin: 0;
+  padding: var(--s3) var(--s4);
+  border-radius: var(--radius);
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  font: 500 0.875rem/1.6 var(--font-code);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.mini-term .dim { color: var(--muted); }
+.mini-term .typed { color: var(--accent-ink); font-weight: 650; }
+@media (min-width: 900px) {
+  .bento { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  /* The tall tile: icon at the top, the message anchored to the bottom, so the space reads as intended. */
+  .cell-offline { grid-column: span 2; grid-row: span 2; padding: var(--s6); grid-template-rows: 1fr auto auto auto; }
+  .cell-offline > .icon { width: 44px; height: 44px; }
+  .cell-share { grid-column: 1 / -1; grid-template-columns: auto auto minmax(0, 1fr); align-items: center; column-gap: var(--s4); }
+  .cell-share h3 { white-space: nowrap; }
+}
+
+/* ---------- how it works: an ordered rail, not cards ---------- */
+.steps { display: grid; gap: var(--s5); margin: 0; padding: 0; list-style: none; counter-reset: step; }
+.steps li { display: grid; gap: var(--s2); padding-left: var(--s5); border-left: 2px solid var(--rule); }
+.steps li:first-child { border-left-color: var(--accent); }
+.steps h3 { font-size: 1.25rem; font-weight: 650; }
+.steps p { color: var(--muted); max-width: 40ch; }
+@media (min-width: 900px) {
+  .steps { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s6); }
+  .steps li { padding: var(--s4) 0 0; border-left: 0; border-top: 2px solid var(--rule); }
+  .steps li:first-child { border-top-color: var(--accent); }
+}
+
+/* ---------- safety: statement left, facts right ---------- */
+.safety { display: grid; gap: var(--s6); }
+.safety-intro { display: grid; gap: var(--s4); align-content: start; }
+.safety-intro > .icon { color: var(--accent-ink); width: 32px; height: 32px; }
+.safety-intro p { color: var(--muted); max-width: 44ch; }
+.facts { display: grid; gap: var(--s5); margin: 0; }
+.facts div { display: grid; gap: var(--s1); }
+.facts dt { font-weight: 650; }
+.facts dd { margin: 0; color: var(--muted); max-width: 56ch; }
+@media (min-width: 900px) {
+  .safety { grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr); gap: var(--s6) clamp(2rem, 6vw, 5rem); }
+  .facts { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s6) var(--s5); }
+}
+
+/* ---------- closing call to action ---------- */
+.closing {
+  display: grid;
+  justify-items: start;
+  gap: var(--s5);
+  margin-block: clamp(1rem, 3vw, 2rem) clamp(3rem, 7vw, 6rem);
+  padding: clamp(2rem, 5vw, 3.5rem);
+  border-radius: var(--radius-panel);
+  background: var(--sheet);
+  border: 1px solid var(--rule);
+}
+.closing h2 { max-width: 22ch; }
+
+/* ---------- footer ---------- */
+.footer { border-top: 1px solid var(--rule); }
+.footer-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s2) var(--s5);
+  padding-block: var(--s5);
+  font-size: 0.9375rem;
+  color: var(--muted);
+}
+.footer a { display: inline-flex; align-items: center; gap: var(--s2); min-height: 44px; color: var(--ink); font-weight: 500; }

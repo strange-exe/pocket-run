@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="description" content="Pocket Run runs Python, C and C++ files on your phone, even with no internet. Free, private, and built for weak connections." />
+    <meta name="theme-color" content="#EEF1F5" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0B0E13" media="(prefers-color-scheme: dark)" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+    <title>About Pocket Run</title>
+    <script src="/theme-boot.js"></script>
+    <link rel="stylesheet" href="/src/about.css" />
+  </head>
+  <body>
+    <header class="nav">
+      <div class="wrap nav-row">
+        <a class="brand" href="/">
+          <svg class="mark" viewBox="0 0 32 32" aria-hidden="true"><path d="M6 4h14l6 6v18H6z" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/><path d="M13 13l7 4.5-7 4.5z" fill="var(--accent)"/></svg>
+          Pocket Run
+        </a>
+        <nav aria-label="On this page" class="nav-links">
+          <a href="#how">How it works</a>
+          <a href="#safety">Safety</a>
+        </nav>
+        <a class="btn btn-primary btn-small" href="/">Open Pocket Run</a>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero wrap" aria-labelledby="hero-title">
+        <div class="hero-copy">
+          <h1 id="hero-title">Run Python, C and C++ on your phone, even with no internet.</h1>
+          <p class="lede">Open a code file, press Run, read the output. A free code runner built for phones and weak connections.</p>
+          <div class="cta-row">
+            <a class="btn btn-primary" href="/"><i data-icon="play:fill"></i>Open Pocket Run</a>
+            <a class="btn btn-ghost" href="#how">See how it works</a>
+          </div>
+        </div>
+        <figure class="hero-shot">
+          <div class="phone">
+            <div class="shot" role="img" aria-label="Pocket Run on a phone: a Python file that asks for a name and prints an average, with its output below the code."></div>
+          </div>
+        </figure>
+      </section>
+
+      <section class="features wrap" aria-labelledby="features-title">
+        <h2 id="features-title">Made for the phone in your pocket</h2>
+        <div class="bento">
+          <article class="cell cell-offline">
+            <i data-icon="wifi-slash"></i>
+            <h3>Works offline</h3>
+            <p>After your first visit, Python runs with the network switched off. C and C++ join it after a one-time download of about 20 MB.</p>
+            <p class="cell-note">Install it from your browser menu and it opens like an app.</p>
+          </article>
+          <article class="cell cell-langs">
+            <i data-icon="file-code"></i>
+            <h3>Picks the language from the file</h3>
+            <ul class="exts" aria-label="Supported file types">
+              <li>.py</li><li>.c</li><li>.cpp</li>
+            </ul>
+          </article>
+          <article class="cell cell-input">
+            <i data-icon="terminal-window"></i>
+            <h3>Asks while it runs</h3>
+            <p>When your program calls <code>input()</code>, <code>scanf</code> or <code>cin</code>, you type the answer, like a terminal.</p>
+            <pre class="mini-term" aria-label="Example output"><span class="dim">Name: </span><span class="typed">Abhinesh</span>
+Hi Abhinesh, average 84.7</pre>
+          </article>
+          <article class="cell cell-share">
+            <i data-icon="link-simple"></i>
+            <h3>Share a file as a link</h3>
+            <p>Send code to a friend or a teacher. The file travels inside the link, never runs until they press Run, and their own work is kept.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="how wrap" id="how" aria-labelledby="how-title">
+        <h2 id="how-title">How it works</h2>
+        <ol class="steps">
+          <li>
+            <h3>Open or type a file</h3>
+            <p>Pick a <code>.py</code>, <code>.c</code> or <code>.cpp</code> file from your phone, or start a new one. Your work is kept between visits.</p>
+          </li>
+          <li>
+            <h3>Press Run</h3>
+            <p>The code runs right in your browser. Errors show the line they came from, and Stop ends a run at any time.</p>
+          </li>
+          <li>
+            <h3>Save or share</h3>
+            <p>Save puts the file back in your downloads with the same name. Share makes a link anyone can open.</p>
+          </li>
+        </ol>
+      </section>
+
+      <section class="safety wrap" id="safety" aria-labelledby="safety-title">
+        <div class="safety-intro">
+          <i data-icon="shield-check"></i>
+          <h2 id="safety-title">Safe with code from anyone</h2>
+          <p>Students share code all the time. Pocket Run checks everything that comes in and keeps every program in a sandbox.</p>
+        </div>
+        <dl class="facts">
+          <div>
+            <dt>Nothing is uploaded</dt>
+            <dd>Your files stay on your phone. A share link carries the file in the part after <code>#</code>, which browsers never send to a server.</dd>
+          </div>
+          <div>
+            <dt>Programs are contained</dt>
+            <dd>A run stops after 8 seconds or 64 KB of output, and it can't reach the network or the app's own storage.</dd>
+          </div>
+          <div>
+            <dt>Disguised files are refused</dt>
+            <dd>Programs renamed to <code>.py</code>, hidden text-direction tricks and oversized links are blocked before they reach the editor.</dd>
+          </div>
+          <div>
+            <dt>Good to know</dt>
+            <dd>One file at a time, up to 512 KB, with each language's standard library. C++ exceptions aren't supported.</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section class="closing wrap" aria-labelledby="closing-title">
+        <h2 id="closing-title">Your code runs on your phone, not on someone else's server.</h2>
+        <a class="btn btn-primary" href="/"><i data-icon="play:fill"></i>Open Pocket Run</a>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="wrap footer-row">
+        <p>Pocket Run is free and open source.</p>
+        <a href="https://github.com/strange-exe/pocket-run" rel="noopener noreferrer"><i data-icon="github-logo"></i>Source and credits on GitHub</a>
+      </div>
+    </footer>
+  </body>
+</html>

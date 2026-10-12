@@ -19,10 +19,11 @@
           Pocket Run
         </h1>
         <p class="tagline">Run Python, C and C++ files on your phone, even with no internet.</p>
-        <div class="masthead-end">
-          <p class="status" role="status"><span class="status-dot" id="status-dot"></span><span id="status-text">Starting Python…</span></p>
-          <button type="button" class="icon-btn" id="theme-btn" aria-label="Colour theme" title="Colour theme"><i data-icon="palette"></i></button>
-        </div>
+        <p class="status" role="status"><span class="status-dot" id="status-dot"></span><span id="status-text">Starting Python…</span></p>
+        <nav class="masthead-actions" aria-label="Pocket Run">
+          <a class="head-btn" href="/about/" aria-label="About Pocket Run" title="About Pocket Run"><i data-icon="info"></i><span class="head-btn-label">About</span></a>
+          <button type="button" class="head-btn" id="theme-btn" aria-label="Colour theme" title="Colour theme"><i data-icon="palette"></i><span class="head-btn-label">Theme</span></button>
+        </nav>
       </header>
 
       <main class="bench">
@@ -64,6 +65,12 @@
                 <p class="pack-text" id="pack-text"></p>
                 <progress id="pack-progress" max="1" value="0" hidden></progress>
                 <button type="button" class="tool pack-button" id="pack-button"></button>
+              </div>
+              <div class="welcome" id="welcome" hidden>
+                <p class="welcome-title">New here?</p>
+                <p>Press <strong>Run</strong> to try the sample program. After this visit, Pocket Run works offline.</p>
+                <a class="welcome-link" href="/about/">About Pocket Run<i data-icon="arrow-right"></i></a>
+                <button type="button" class="welcome-close" id="welcome-close" aria-label="Dismiss welcome" title="Dismiss"><i data-icon="x"></i></button>
               </div>
               <pre class="output" id="output" tabindex="0" aria-live="polite"></pre>
               <form class="live-input" id="live-input" hidden>

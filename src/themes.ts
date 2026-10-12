@@ -16,7 +16,7 @@ export interface Theme {
   id: string;
   name: string;
   scheme: Scheme;
-  /** Undefined for Pocket Run's own themes, whose colours live in styles.css. */
+  /** Undefined for Pocket Run's own themes, whose colours live in tokens.css. */
   colors?: Colors;
   custom?: boolean;
 }
@@ -30,7 +30,7 @@ const c = (
   "syn-keyword": keyword, "syn-string": string, "syn-number": number, "syn-comment": comment, "syn-def": def,
 });
 
-/** Pocket Run's own palettes (also in styles.css, which paints them before any script runs). */
+/** Pocket Run's own palettes (also in tokens.css, which paints them before any script runs). */
 export const POCKET: Record<Scheme, Colors> = {
   light: c("#eef1f5", "#fbfcfd", "#f4f6f9", "#131922", "#5a6475", "#dde2e9", "#0a7d55", "#ffffff", "#0a7d55", "#c42b2b", "#8f5600",
     "#a8326e", "#8f5600", "#1d63c7", "#667080", "#0b7489"),

@@ -1,0 +1,78 @@
+/* Pocket Run design tokens and fonts, shared by the app (styles.css) and the about page (about.css).
+   Other themes override the base colours at run time (src/themes.ts). */
+
+@font-face {
+  font-family: "Geist";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url("@fontsource-variable/geist/files/geist-latin-wght-normal.woff2") format("woff2-variations");
+}
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 800;
+  src: url("@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2") format("woff2-variations");
+}
+
+:root {
+  color-scheme: light;
+  --font-ui: "Geist", ui-sans-serif, system-ui, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+
+  /* Base colours: Pocket Run Light. Other themes override these (src/themes.ts); keep the two in sync. */
+  --paper: #eef1f5;   /* app background */
+  --sheet: #fbfcfd;   /* editor and panels */
+  --bar: #f4f6f9;     /* panel header strips, Run dock */
+  --ink: #131922;
+  --muted: #5a6475;
+  --rule: #dde2e9;    /* hairlines */
+  --accent: #0a7d55;
+  --on-accent: #ffffff;
+  --ok: #0a7d55;
+  --err: #c42b2b;
+  --warn: #8f5600;
+  --syn-keyword: #a8326e;
+  --syn-string: #8f5600;
+  --syn-number: #1d63c7;
+  --syn-comment: #667080;
+  --syn-def: #0b7489;
+
+  /* Derived from the base colours, so every theme gets them. */
+  --edge: color-mix(in srgb, var(--ink) 18%, var(--sheet));    /* button borders */
+  --field: color-mix(in srgb, var(--muted) 85%, var(--sheet)); /* text-field borders, 3:1 or more */
+  --hover: color-mix(in srgb, var(--ink) 6%, transparent);
+  --accent-hover: color-mix(in srgb, var(--accent) 84%, var(--ink));
+  --accent-soft: color-mix(in srgb, var(--accent) 12%, transparent);
+  --accent-ink: color-mix(in srgb, var(--accent) 78%, var(--ink)); /* accent text on --accent-soft */
+  --err-soft: color-mix(in srgb, var(--err) 10%, transparent);
+  --active-line: color-mix(in srgb, var(--ink) 4%, transparent);
+  --selection: color-mix(in srgb, var(--accent) 22%, transparent);
+
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px;
+  --code-size: 16px; /* 16px stops iOS zooming into the editor on focus */
+  --radius: 6px;
+  --radius-panel: 10px;
+}
+
+/* data-theme is set before first paint by the start-up script in index.html. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --paper: #0b0e13;
+  --sheet: #12161d;
+  --bar: #171c24;
+  --ink: #e4e8ee;
+  --muted: #95a0b0;
+  --rule: #232a35;
+  --accent: #3ecf8e;
+  --on-accent: #052116;
+  --ok: #3ecf8e;
+  --err: #ff7b72;
+  --warn: #e7b86e;
+  --syn-keyword: #ee8fcb;
+  --syn-string: #e7b86e;
+  --syn-number: #79b8ff;
+  --syn-comment: #7b8697;
+  --syn-def: #56d0e0;
+}

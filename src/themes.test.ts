@@ -26,8 +26,8 @@ describe("built-in themes", () => {
     expectReadable(colors);
   });
 
-  it("Pocket Run's colours in themes.ts match styles.css", () => {
-    const css = readFileSync("src/styles.css", "utf8");
+  it("Pocket Run's colours in themes.ts match tokens.css", () => {
+    const css = readFileSync("src/tokens.css", "utf8");
     const block = (selector: string) => css.slice(css.indexOf(selector), css.indexOf("}", css.indexOf(selector)));
     for (const [scheme, selector] of [["light", ":root {"], ["dark", ':root[data-theme="dark"] {']] as const) {
       for (const t of TOKENS) expect(block(selector), `${scheme} --${t}`).toContain(`--${t}: ${POCKET[scheme][t]};`);

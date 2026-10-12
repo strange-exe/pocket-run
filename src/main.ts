@@ -43,7 +43,8 @@ const packButton = $<HTMLButtonElement>("pack-button");
 
 // ---------- state ----------
 const python = languageById("python");
-const ownDraft = loadDraft() ?? { filename: python.defaultFilename, code: python.sample, stdin: "Abhinesh\n" };
+const savedDraft = loadDraft();
+const ownDraft = savedDraft ?? { filename: python.defaultFilename, code: python.sample, stdin: "Abhinesh\n" };
 // A share link (#s=…) opens its file in the editor; the student's own file is kept aside.
 const received = await readShareHash(location.hash);
 if (location.hash) history.replaceState(null, "", location.pathname + location.search);
@@ -235,11 +236,39 @@ const announceBlocked = (reason: string) =>
 if (shared) announceShared(draft.filename);
 else if (received && !received.ok) announceBlocked(received.blocked);
 
+// ---------- first visit: a one-time welcome where the output will appear ----------
+// Teaching by doing: the editor already holds a sample program, so the note just says "press Run".
+// Shown once, only to someone with no saved work who didn't arrive through a share link.
+// On a phone the Output panel starts below the fold, so there the note sits in the notice line
+// right above the Run button it points to.
+const WELCOMED_KEY = "pocket-run:welcomed";
+const welcome = $("welcome");
+let welcoming = false;
+function dismissWelcome() {
+  if (!welcoming) return;
+  welcoming = false;
+  welcome.hidden = true;
+  try { localStorage.setItem(WELCOMED_KEY, "1"); } catch { /* private mode: it may show once more */ }
+}
+let welcomed = true;
+try { welcomed = localStorage.getItem(WELCOMED_KEY) === "1"; } catch { /* storage blocked: skip the note */ }
+welcoming = !welcomed && savedDraft === null && received === null;
+if (welcoming && matchMedia("(max-width: 899px)").matches) {
+  showNotice("New here? Press Run to try the sample program.", {
+    tone: "info",
+    action: { label: "About Pocket Run", run: () => location.assign("/about/") },
+  });
+} else {
+  welcome.hidden = !welcoming;
+}
+$("welcome-close").addEventListener("click", dismissWelcome);
+
 // A link pasted into a tab where Pocket Run is already open only changes the fragment (no reload).
 window.addEventListener("hashchange", async () => {
   const file = await readShareHash(location.hash);
   history.replaceState(null, "", location.pathname + location.search);
   if (!file || running) return;
+  dismissWelcome();
   if (!file.ok) return announceBlocked(file.blocked);
   saveDraft({ filename: filenameInput.value, code: editor.getCode(), stdin: stdinInput.value }, PREVIOUS_KEY);
   loadFile(file.draft);
@@ -327,6 +356,7 @@ newDialog.addEventListener("close", () => {
 runBtn.addEventListener("click", () => void onRun());
 
 async function onRun() {
+  dismissWelcome(); // they found Run: the note has done its job
   if (running) return isCompiled(detectLanguage(filenameInput.value)) ? cpp.stop() : runner.stop();
   const lang = detectLanguage(filenameInput.value);
   if (!lang) return showNotice("Give the file a .py, .c or .cpp name so Pocket Run knows how to run it.");

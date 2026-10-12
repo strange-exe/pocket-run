@@ -112,6 +112,8 @@ export default defineConfig(({ mode }) => ({
     // rebuild the src/ tree. The code itself is still readable; nothing secret lives in the client.
     sourcemap: false,
     rolldownOptions: {
+      // Two pages: the app, and the static about page at /about/.
+      input: { app: "index.html", about: "about/index.html" },
       output: {
         ...hashedNames,
         // Oxc minifier: drop leftover console.* calls (and debugger statements, its default).
@@ -144,7 +146,7 @@ export default defineConfig(({ mode }) => ({
       },
       workbox: {
         // The Python runtime is precached so the first visit makes the app work offline.
-        globPatterns: ["**/*.{js,mjs,css,html,svg,png,woff2,wasm,zip,json}"],
+        globPatterns: ["**/*.{js,mjs,css,html,svg,png,webp,woff2,wasm,zip,json}"],
         // The C/C++ pack (~20 MB) is opt-in: the compiler worker downloads it into its own cache.
         globIgnores: ["clang/**"],
         maximumFileSizeToCacheInBytes: 12 * 1024 * 1024,
