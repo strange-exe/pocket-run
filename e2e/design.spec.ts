@@ -7,31 +7,37 @@ const viewports = [
 ];
 const shots = process.env.SHOTS_DIR ?? "e2e/shots/after";
 
-for (const vp of viewports) {
-  for (const scheme of ["light", "dark"] as const) {
-    test(`layout ${vp.name} ${scheme}`, async ({ page }, testInfo) => {
-      const dir = `${shots}/${testInfo.project.name}`;
-      await followDeviceTheme(page);
-      await page.setViewportSize(vp);
-      // Load, emulate, reload, then check the theme took (Firefox drops an earlier emulation).
-      await openApp(page);
-      await page.emulateMedia({ colorScheme: scheme });
-      await page.reload();
-      await expect(page.locator("#status-dot")).toHaveAttribute("data-state", "ready", { timeout: 30_000 });
-      expect(await page.evaluate(() => document.documentElement.dataset.theme)).toBe(scheme);
+test.describe("layout matrix", () => {
+  // These tests reload right after the first load (to apply the colour scheme). That reload can land while the
+  // app is still registering its service worker, and WebKit then logs the cancelled sw.js fetch as an error
+  // (CI, 2026-10-12). Offline behaviour has its own tests; here the service worker is left out.
+  test.use({ serviceWorkers: "block" });
+  for (const vp of viewports) {
+    for (const scheme of ["light", "dark"] as const) {
+      test(`layout ${vp.name} ${scheme}`, async ({ page }, testInfo) => {
+        const dir = `${shots}/${testInfo.project.name}`;
+        await followDeviceTheme(page);
+        await page.setViewportSize(vp);
+        // Load, emulate, reload, then check the theme took (Firefox drops an earlier emulation).
+        await openApp(page);
+        await page.emulateMedia({ colorScheme: scheme });
+        await page.reload();
+        await expect(page.locator("#status-dot")).toHaveAttribute("data-state", "ready", { timeout: 30_000 });
+        expect(await page.evaluate(() => document.documentElement.dataset.theme)).toBe(scheme);
 
-      // Above the fold: what it is, who/why (tagline), and the primary action.
-      await expect(page.getByRole("heading", { level: 1 })).toBeInViewport();
-      await expect(page.locator(".tagline")).toBeInViewport();
-      await expect(page.locator("#run-btn")).toBeInViewport();
-      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        // Above the fold: what it is, who/why (tagline), and the primary action.
+        await expect(page.getByRole("heading", { level: 1 })).toBeInViewport();
+        await expect(page.locator(".tagline")).toBeInViewport();
+        await expect(page.locator("#run-btn")).toBeInViewport();
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 
-      await page.screenshot({ path: `${dir}/home-${vp.name}-${scheme}.png`, animations: "disabled" });
-      await run(page, "main.py", 'name = input("Your name: ")\nprint(f"Hello, {name}!")\nprint(undefined_name)', "Abhinesh\n");
-      await page.screenshot({ path: `${dir}/ran-${vp.name}-${scheme}.png`, fullPage: true, animations: "disabled" });
-    });
+        await page.screenshot({ path: `${dir}/home-${vp.name}-${scheme}.png`, animations: "disabled" });
+        await run(page, "main.py", 'name = input("Your name: ")\nprint(f"Hello, {name}!")\nprint(undefined_name)', "Abhinesh\n");
+        await page.screenshot({ path: `${dir}/ran-${vp.name}-${scheme}.png`, fullPage: true, animations: "disabled" });
+      });
+    }
   }
-}
+});
 
 test("no horizontal scroll at 320 px, while loading and when ready", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 640 });
