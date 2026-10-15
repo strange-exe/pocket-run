@@ -84,22 +84,27 @@ for (const scheme of ["light", "dark"] as const) {
   });
 }
 
-test("Open Pocket Run goes to the app, and the app links back here", async ({ page }) => {
-  await page.goto("/about/");
-  await page.locator(".hero").getByRole("link", { name: "Open Pocket Run" }).click();
-  await expect(page).toHaveURL(/\/$/);
-  await expect(page.locator("#status-dot")).toHaveAttribute("data-state", "ready", { timeout: 30_000 });
-  await page.locator(".masthead").getByRole("link", { name: "About Pocket Run" }).click();
-  await expect(page).toHaveURL(/\/about\/$/);
-});
+test.describe("links between the pages", () => {
+  // Leaving the app right after its first load cancels the service worker's sw.js fetch, which WebKit logs as an
+  // error (CI, 2026-10-15). This test is about the links; offline behaviour has its own test, so the worker is out.
+  test.use({ serviceWorkers: "block" });
+  test("Open Pocket Run goes to the app, and the app links back here", async ({ page }) => {
+    await page.goto("/about/");
+    await page.locator(".hero").getByRole("link", { name: "Open Pocket Run" }).click();
+    await expect(page).toHaveURL(/\/$/);
+    await expect(page.locator("#status-dot")).toHaveAttribute("data-state", "ready", { timeout: 30_000 });
+    await page.locator(".masthead").getByRole("link", { name: "About Pocket Run" }).click();
+    await expect(page).toHaveURL(/\/about\/$/);
+  });
 
-test("the about page follows the theme chosen in the app", async ({ page }) => {
-  await openApp(page);
-  await page.locator("#theme-btn").click();
-  await page.getByRole("radio", { name: "Dracula" }).check();
-  await page.goto("/about/");
-  expect(await page.evaluate(() => document.documentElement.dataset.theme)).toBe("dark");
-  expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe("rgb(40, 42, 54)"); // Dracula sheet
+  test("the about page follows the theme chosen in the app", async ({ page }) => {
+    await openApp(page);
+    await page.locator("#theme-btn").click();
+    await page.getByRole("radio", { name: "Dracula" }).check();
+    await page.goto("/about/");
+    expect(await page.evaluate(() => document.documentElement.dataset.theme)).toBe("dark");
+    expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe("rgb(40, 42, 54)"); // Dracula sheet
+  });
 });
 
 test("a first visit to the about page gets the default theme, Tokyo Night", async ({ page }) => {
