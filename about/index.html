@@ -33,7 +33,7 @@
         <div class="wrap hero-grid">
           <div class="hero-copy">
             <p class="status-chip"><span class="dot" aria-hidden="true"></span>Python · C · C++ · all work offline</p>
-            <h1 id="hero-title">Your code runs here. Not on a server.</h1>
+            <h1 id="hero-title">Your code runs <em>here.</em> Not on a server.</h1>
             <p class="lede">Pocket Run runs Python, C and C++ files on your phone, even in airplane mode. Python is ready after your first visit; C and C++ after a one-time download of about 20 MB. Free, private, and built for weak connections.</p>
             <a class="btn btn-primary btn-large" href="/"><i data-icon="play:fill"></i>Open Pocket Run</a>
           </div>
@@ -41,7 +41,9 @@
           <div class="phone-stage">
             <div class="field" aria-hidden="true"></div>
             <div class="phone" role="img" aria-label="Pocket Run on a phone in airplane mode. A Python file asks for a name, the student types Abhinesh, and it prints their average, 84.7.">
-              <!-- Pocket Run's real phone layout, scaled down: header, file bar, editor, Input, Output, Run bar. -->
+              <!-- Pocket Run's real phone layout (Code and Output tabs), scaled down. When it comes into view it plays one
+                   short run (about.css, "the demo"): Run is pressed, Output opens, the program asks for a name, it is typed and sent, the
+                   result prints. Without animation it shows the finished run. -->
               <div class="screen">
                 <div class="sbar">
                   <span>9:41</span>
@@ -52,31 +54,41 @@
                   <span class="m-brand"><svg class="m-mark" viewBox="0 0 32 32" aria-hidden="true"><path d="M6 4h14l6 6v18H6z" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/><path d="M13 13l7 4.5-7 4.5z" fill="var(--accent)"/></svg>Pocket Run</span>
                   <span class="m-icons"><i data-icon="info"></i><i data-icon="palette"></i></span>
                 </div>
-                <span class="m-status"><span class="m-dot"></span>Python ready · works offline</span>
-                <div class="m-panel m-editor">
-                  <div class="m-file"><span class="m-name">average.py</span><span class="tag">Python</span></div>
-                  <div class="m-tools"><span><i data-icon="folder-open"></i>Open</span><span><i data-icon="download-simple"></i>Save</span><span><i data-icon="file-plus"></i>New</span><span><i data-icon="share-network"></i>Share</span></div>
-                  <pre class="code"><span class="ln">1</span>name = <span class="f">input</span>(<span class="s">"Name: "</span>)
+                <span class="m-status"><span class="m-dot"></span>Python ready</span>
+                <div class="m-tabs"><span class="m-tab m-tab-code">Code</span><span class="m-tab m-tab-out">Output</span></div>
+                <div class="m-views">
+                  <div class="m-panel m-editor">
+                    <div class="m-file"><span class="m-name">average.py</span><span class="tag">Python</span></div>
+                    <div class="m-tools"><span><i data-icon="folder-open"></i>Open</span><span><i data-icon="download-simple"></i>Save</span><span><i data-icon="file-plus"></i>New</span><span><i data-icon="share-network"></i>Share</span></div>
+                    <pre class="code"><span class="ln">1</span>name = <span class="f">input</span>(<span class="s">"Name: "</span>)
 <span class="ln">2</span>marks = [<span class="n">78</span>, <span class="n">91</span>, <span class="n">85</span>]
 <span class="ln">3</span>avg = <span class="f">sum</span>(marks) / <span class="f">len</span>(marks)
 <span class="ln">4</span><span class="f">print</span>(<span class="k">f</span><span class="s">"Hi {name}, average {avg:.1f}"</span>)</pre>
-                </div>
-                <div class="m-panel m-row"><i data-icon="caret-down"></i>Input <span class="dim">optional</span></div>
-                <div class="m-panel m-out">
-                  <div class="m-row"><i data-icon="terminal-window"></i>Output<span class="receipt"><b>finished</b> 6 ms</span></div>
-                  <pre><span class="dim">Name: </span><span class="typed">Abhinesh</span>
-Hi Abhinesh, average 84.7<span class="caret"></span></pre>
+                  </div>
+                  <div class="m-outview">
+                    <div class="m-panel m-row"><i data-icon="caret-down"></i>Input <span class="dim">optional</span></div>
+                    <div class="m-panel m-out">
+                      <div class="m-row"><i data-icon="terminal-window"></i>Output<span class="receipt"><b>finished</b> 6 ms</span></div>
+                      <pre><span class="dim">Name: </span><span class="echo">Abhinesh</span>
+<span class="result">Hi Abhinesh, average 84.7</span></pre>
+                      <div class="m-ask">
+                        <span class="m-ask-label">The program is waiting for input</span>
+                        <span class="m-ask-row"><span class="m-field"><span class="typing">Abhinesh</span></span><span class="m-send"><i data-icon="paper-plane-right"></i>Send</span></span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
                 <div class="m-dock"><div class="run"><i data-icon="play:fill"></i>Run</div><span class="home"></span></div>
               </div>
             </div>
+            <button type="button" class="replay" id="replay" hidden><i data-icon="arrow-counter-clockwise"></i>Play the run again</button>
           </div>
         </div>
 
         <ul class="wrap proof" aria-label="In short">
-          <li><b>All three run offline</b><span>Python after your first visit. C and C++ after a one-time download of about 20 MB.</span></li>
-          <li><b>Nothing is uploaded</b><span>Your files stay on your phone.</span></li>
-          <li><b>Free and open source</b><span>No account, no ads, no limits on runs.</span></li>
+          <li><i data-icon="airplane-tilt"></i><b>All three run offline</b><span>Python after your first visit. C and C++ after a one-time download of about 20 MB.</span></li>
+          <li><i data-icon="lock-simple"></i><b>Nothing is uploaded</b><span>Your files stay on your phone.</span></li>
+          <li><i data-icon="code"></i><b>Free and open source</b><span>No account, no ads, no limits on runs.</span></li>
         </ul>
       </section>
 

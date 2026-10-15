@@ -50,7 +50,9 @@ for (const vp of viewports) {
       await expect(page.locator(".phone")).toBeVisible();
       const box = (await page.locator(".phone").boundingBox())!;
       expect(box.height / box.width, "phone proportions").toBeGreaterThan(2);
-      for (const part of [".sbar", ".m-head", ".m-status", ".m-file", ".m-tools", ".code", ".m-out", ".m-dock .run"]) {
+      // At rest it shows the finished run in the Output tab (the demo's own tests check the Code tab first).
+      await demo(page, "end");
+      for (const part of [".sbar", ".m-head", ".m-status", ".m-tabs", ".m-out", ".result", ".m-dock .run"]) {
         await expect(page.locator(`.screen ${part}`), part).toBeVisible();
       }
       const [screen, paper] = await page.evaluate(() => {
@@ -191,6 +193,69 @@ test.describe("the 3D backdrop", () => {
       await expect(page.locator(".field canvas")).toHaveCount(0);
     });
   }
+});
+
+// The phone plays one run like the real app's phone layout: Code first, Run, then Output with the program asking,
+// the name typed and sent, and the result. Animations are paused and moved by hand, so no timing can make it flaky.
+const demo = (page: import("@playwright/test").Page, at: "start" | "end") =>
+  page.evaluate((at) => {
+    const runs = document.getAnimations().filter((a) => (a as CSSAnimation).animationName?.startsWith("demo-"));
+    for (const a of runs) at === "start" ? (a.pause(), (a.currentTime = 0)) : a.finish();
+    return runs.length;
+  }, at);
+
+test.describe("the phone's demo run", () => {
+  test("starts on the Code tab and rests on the finished run in the Output tab", async ({ page }) => {
+    await page.goto("/about/");
+    expect(await demo(page, "start")).toBeGreaterThan(5);
+    await expect(page.locator(".screen .code")).toBeVisible();
+    await expect(page.locator(".screen .m-outview")).toBeHidden();
+    await demo(page, "end");
+    await expect(page.locator(".screen .code")).toBeHidden();
+    await expect(page.locator(".screen .result")).toHaveText("Hi Abhinesh, average 84.7");
+    await expect(page.locator(".screen .result")).toBeVisible();
+    await expect(page.locator(".screen .m-ask")).toBeHidden();
+  });
+
+  test("on a phone it waits on the Code tab until it is scrolled into view", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/about/");
+    const states = () => page.evaluate(() => [...new Set(document.getAnimations()
+      .filter((a) => (a as CSSAnimation).animationName?.startsWith("demo-")).map((a) => a.playState))]);
+    await expect(page.locator(".screen")).not.toBeInViewport({ ratio: 0.4 });
+    expect(await states()).toEqual(["paused"]);
+    await expect(page.locator(".screen .code")).toBeAttached();
+    expect(await page.locator(".screen .m-editor").evaluate((el) => getComputedStyle(el).visibility)).toBe("visible");
+    await page.locator(".phone").scrollIntoViewIfNeeded();
+    await expect.poll(states).not.toContain("paused");
+  });
+
+  test("Play the run again restarts it", async ({ page }) => {
+    await page.goto("/about/");
+    await demo(page, "end");
+    await page.getByRole("button", { name: "Play the run again" }).click();
+    await demo(page, "start");
+    await expect(page.locator(".screen .code")).toBeVisible();
+  });
+
+  test("nothing on the page moves for more than five seconds (WCAG 2.2.2)", async ({ page }) => {
+    await page.goto("/about/");
+    const loops = await page.evaluate(() =>
+      document.getAnimations()
+        .filter((a) => a.timeline === document.timeline) // scroll-driven reveals only move while the reader scrolls
+        .map((a) => ({ name: (a as CSSAnimation).animationName, ...a.effect!.getComputedTiming() }))
+        .filter((t) => t.endTime === Infinity || Number(t.endTime) > 5000));
+    expect(loops).toEqual([]);
+  });
+
+  test("with reduced motion it shows the finished run, with no button to replay", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto("/about/");
+    expect(await demo(page, "start")).toBe(0);
+    await expect(page.locator(".screen .result")).toBeVisible();
+    await expect(page.locator(".screen .code")).toBeHidden();
+    await expect(page.locator("#replay")).toBeHidden();
+  });
 });
 
 test("the phone tilts towards a mouse, but not with reduced motion", async ({ page }) => {

@@ -1,5 +1,6 @@
 // The about page's small interactive layer. The page is complete without any of it.
 // - The phone tilts towards the pointer (a CSS 3D transform; mouse and pen only, never with reduced motion).
+// - A button plays the phone's demo run again.
 // - Feature tiles light their border where the pointer is.
 // - When motion, data and the network allow, a 3D dot field (about-field.ts) loads after the page is idle.
 const reduced = matchMedia("(prefers-reduced-motion: reduce)");
@@ -21,6 +22,28 @@ if (stage && phone) {
     phone.style.removeProperty("--tilt-x");
     phone.style.removeProperty("--tilt-y");
   });
+}
+
+// ---------- the phone's demo run (about.css, "the demo") ----------
+// It plays once, when the phone comes into view (on a phone it starts below the fold), and the button plays it
+// again. Without a script the phone shows the finished run and the button stays hidden; with reduced motion
+// the CSS never animates and hides the button.
+const phoneScreen = document.querySelector<HTMLElement>(".screen");
+const replay = document.querySelector<HTMLButtonElement>("#replay");
+if (phoneScreen && replay) {
+  const play = () => {
+    phoneScreen.classList.remove("play", "paused");
+    void phoneScreen.offsetWidth; // restarts the CSS animations
+    phoneScreen.classList.add("play");
+  };
+  // Held on its first frame (the Code tab) until it is seen, so scrolling to it never shows the end first.
+  phoneScreen.classList.add("play", "paused");
+  const seen = new IntersectionObserver((entries) => {
+    if (entries.some((e) => e.isIntersecting)) { seen.disconnect(); phoneScreen.classList.remove("paused"); }
+  }, { threshold: 0.4 });
+  seen.observe(phoneScreen);
+  replay.hidden = false;
+  replay.addEventListener("click", play);
 }
 
 // ---------- border spotlight on the feature tiles ----------
