@@ -12,6 +12,11 @@ const WEBKIT_RECOVERED_WORKER_BLOCK = [
   // Not end-anchored: WebKit's text can carry trailing whitespace, which a bare `$` rejects.
   /\/assets\/[\w-]+\.js due to access control checks/,
   /\/pyodide\/[\d.]+-heap\d+\/pyodide\.mjs due to access control checks/,
+  // A reload or a navigation while the app is still registering its service worker cancels the sw.js download,
+  // and WebKit logs the cancelled request this way (seen on CI in three different tests, 2026-10-12 to 10-15).
+  // Harmless: registration simply happens on the next load. A real service worker failure can't hide here, because
+  // offline.spec.ts and the other offline tests check that the app really works with no network.
+  /^\/[\w.:]+\/sw\.js due to access control checks\.?\s*$/,
 ];
 
 /**
