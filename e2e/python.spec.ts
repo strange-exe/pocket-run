@@ -67,15 +67,24 @@ test.describe("hostile programs are contained", () => {
     expect(after.output).toBe("still alive\n");
   });
 
-  test("a memory bomb is stopped and the next run works", async ({ page }) => {
-    // Filling memory takes about 4 to 8 s here depending on the engine (measured 2026-10-13: Firefox 4.8 s,
-    // WebKit 4.0 s, Chromium 8.3 s), so whichever limit comes first stops it: MemoryError or the 8 s limit.
-    // Both contain the program; what matters is that it ends cleanly and Python keeps working.
-    const r = await run(page, "main.py", "a = []\nwhile True:\n    a.append(bytearray(10**7))");
-    if (r.status === "error") expect(r.output).toContain("MemoryError");
-    else expect(r.status).toBe("timeout");
-    const after = await run(page, "main.py", 'print("ok")');
-    expect(after.output).toBe("ok\n");
+  // Python's memory is capped at 512 MB (scripts/copy-pyodide.mjs). Before the cap, filling 4 GB took 4 to 8 s
+  // (racing the 8 s limit) and big steps froze WebKit for 20 s+; capped, both end in MemoryError in under 1 s.
+  for (const [name, step] of [["small steps", "10**7"], ["500 MB steps", "5 * 10**8"]] as const) {
+    test(`a memory bomb in ${name} raises MemoryError quickly, and the next run works`, async ({ page }) => {
+      const r = await run(page, "main.py", `a = []\nwhile True:\n    a.append(bytearray(${step}))`);
+      expect(r.status).toBe("error");
+      expect(r.output).toContain("MemoryError");
+      const [, took, unit] = r.receipt.match(/([\d.]+) (ms|s)\b/)!; // the receipt reads e.g. "exit 1 471 ms Python"
+      expect(Number(took) * (unit === "s" ? 1000 : 1), r.receipt).toBeLessThan(3000);
+      const after = await run(page, "main.py", 'print("ok")');
+      expect(after.output).toBe("ok\n");
+    });
+  }
+
+  test("ordinary big programs still fit under the cap", async ({ page }) => {
+    const r = await run(page, "main.py", "xs = list(range(10**6))\nd = {i: str(i) for i in xs}\nb = bytearray(300 * 10**6)\nprint(len(d), len(b))");
+    expect(r.status).toBe("ok");
+    expect(r.output).toBe("1000000 300000000\n");
   });
 
   test("deep recursion raises RecursionError", async ({ page }) => {

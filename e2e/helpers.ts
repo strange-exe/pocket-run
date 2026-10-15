@@ -11,7 +11,7 @@ const WEBKIT_RECOVERED_WORKER_BLOCK = [
   /^Failed to load resource: Worker load was blocked by Cross-Origin-Embedder-Policy$/,
   // Not end-anchored: WebKit's text can carry trailing whitespace, which a bare `$` rejects.
   /\/assets\/[\w-]+\.js due to access control checks/,
-  /\/pyodide\/[\d.]+\/pyodide\.mjs due to access control checks/,
+  /\/pyodide\/[\d.]+-heap\d+\/pyodide\.mjs due to access control checks/,
 ];
 
 /**
@@ -70,7 +70,14 @@ export async function openFile(page: Page, name: string, code: string) {
 export interface Ran { status: string | null; receipt: string; output: string }
 
 /** Expands the Input section if needed. (`open` is a boolean attribute: its value is "" when set.) */
+/** Phones show Code and Output as tabs: switches to one, like a student tapping it (no-op on wider screens). */
+export async function showView(page: Page, view: "code" | "output") {
+  const tab = page.locator(`#tab-${view}`);
+  if (await tab.isVisible()) await tab.click();
+}
+
 export async function showInput(page: Page) {
+  await showView(page, "output"); // on phones the Input box is in the Output tab
   const box = page.locator("#stdin-box");
   if (!(await box.evaluate((d: HTMLDetailsElement) => d.open))) await box.locator("summary").click();
 }

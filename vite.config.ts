@@ -3,6 +3,8 @@ import { defineConfig, type Plugin } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 
 const pyodideVersion: string = JSON.parse(readFileSync("node_modules/pyodide/package.json", "utf8")).version;
+/** Pyodide's folder under /pyodide/: version plus Python's memory cap (scripts/copy-pyodide.mjs builds it). */
+const pyodideDir = `${pyodideVersion}-heap${JSON.parse(readFileSync("scripts/python-heap.json", "utf8")).mb}`;
 
 /**
  * The C/C++ pack manifest, written by scripts/fetch-clang.mjs (npm's predev/prebuild run it).
@@ -81,7 +83,7 @@ const hashedNames = {
 const IMMUTABLE = "public, max-age=31536000, immutable";
 const cacheRules: Record<string, string> = {
   "/assets/*": IMMUTABLE,
-  [`/pyodide/${pyodideVersion}/*`]: IMMUTABLE,
+  [`/pyodide/${pyodideDir}/*`]: IMMUTABLE,
   "/clang/*": IMMUTABLE, // the folder name is the pack's version
 };
 
@@ -127,7 +129,7 @@ export default defineConfig(({ mode }) => ({
     },
   },
   define: {
-    __PYODIDE_VERSION__: JSON.stringify(pyodideVersion),
+    __PYODIDE_DIR__: JSON.stringify(pyodideDir),
     __CLANG_PACK__: JSON.stringify(clangPack(mode)),
   },
   plugins: [
@@ -158,7 +160,7 @@ export default defineConfig(({ mode }) => ({
         maximumFileSizeToCacheInBytes: 12 * 1024 * 1024,
         // Versioned or hashed URLs need no ?__WB_REVISION__ cache-buster, so installing the
         // service worker can reuse what the page already downloaded (no second 6 MB download).
-        dontCacheBustURLsMatching: /^(assets|pyodide\/\d+\.\d+\.\d+)\//,
+        dontCacheBustURLsMatching: /^(assets|pyodide\/\d+\.\d+\.\d+-heap\d+)\//,
         navigateFallback: "/index.html",
       },
     }),

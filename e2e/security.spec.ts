@@ -2,6 +2,16 @@ import { expect, openApp, run, test } from "./helpers";
 
 const cp = (...codes: number[]) => String.fromCodePoint(...codes);
 
+test("the Python runtime that is served carries the 512 MB memory cap", async ({ request }) => {
+  // scripts/copy-pyodide.mjs patches Pyodide's 4 GB heap maximum; the build stops if it can't.
+  const res = await request.get("/sw.js");
+  const dir = (await res.text()).match(/pyodide\/([\d.]+-heap\d+)\//)![1];
+  expect(dir).toMatch(/-heap512$/);
+  const glue = await (await request.get(`/pyodide/${dir}/pyodide.asm.mjs`)).text();
+  expect(glue).toContain(`getHeapMax=()=>${512 * 1024 * 1024}`);
+  expect(glue).not.toContain("getHeapMax=()=>4294901760");
+});
+
 test("the page and its worker scripts are served with the Content-Security-Policy", async ({ page }) => {
   const workerUrls: string[] = [];
   page.on("worker", (w) => workerUrls.push(w.url()));

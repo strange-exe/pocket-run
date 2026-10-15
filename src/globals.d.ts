@@ -1,5 +1,5 @@
-/** Pyodide version, injected by vite.config.ts; the runtime is served from /pyodide/<version>/. */
-declare const __PYODIDE_VERSION__: string;
+/** Pyodide's folder, "<version>-heap<MB>", injected by vite.config.ts; the runtime is served from /pyodide/<folder>/. */
+declare const __PYODIDE_DIR__: string;
 
 /** The C/C++ pack manifest written by scripts/fetch-clang.mjs, injected by vite.config.ts. */
 declare const __CLANG_PACK__: {

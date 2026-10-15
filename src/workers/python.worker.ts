@@ -111,10 +111,11 @@ let bootSource: BootSource = "fresh";
 
 async function boot(interrupt: SharedArrayBuffer | null): Promise<PyodideAPI> {
   // Load the loader from our own origin so it always matches the precached runtime files.
-  const indexURL = `/pyodide/${__PYODIDE_VERSION__}/`;
+  const indexURL = `/pyodide/${__PYODIDE_DIR__}/`;
   const loaderUrl = new URL(`${indexURL}pyodide.mjs`, self.location.origin).href;
-  const { loadPyodide, version } = (await import(/* @vite-ignore */ loaderUrl)) as typeof import("pyodide");
-  const key = `/python-snapshot/${version}`;
+  const { loadPyodide } = (await import(/* @vite-ignore */ loaderUrl)) as typeof import("pyodide");
+  // Keyed by the folder (version and memory cap): a snapshot from another runtime build is never reused.
+  const key = `/python-snapshot/${__PYODIDE_DIR__}`;
 
   let py: PyodideAPI | null = null;
   const snapshot = await readSnapshot(key);
