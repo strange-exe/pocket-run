@@ -603,12 +603,78 @@ button, input, textarea { font: inherit; color: inherit; }
   cursor: pointer;
 }
 .theme-delete:hover { background: var(--err-soft); }
+.ligature-option {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s3);
+  min-height: 44px;
+  margin: 0 0 var(--s4);
+  padding: var(--s3) var(--s2) var(--s2);
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  cursor: pointer;
+  flex: none; /* the dialog's form is a shrinking flex column: never squeeze this below its text */
+}
+.ligature-option input { margin: 3px 0 0; accent-color: var(--accent); width: 18px; height: 18px; flex: none; }
+.ligature-option > span { display: grid; gap: 2px; }
+.ligature-name { font-weight: 600; }
+.ligature-note { font-size: 0.8125rem; color: var(--muted); }
 .theme-actions { display: flex; flex-wrap: wrap; gap: var(--s2); }
 .theme-message { min-height: 1.5em; margin: var(--s2) 0 var(--s3); font-size: 0.8125rem; color: var(--muted); }
 .theme-message[data-tone="error"] { color: var(--err); }
 .theme-dialog form > .tool { align-self: flex-end; }
 
 /* ---------- desktop: editor left, Run + input + output right ---------- */
+/* ---------- phones: Code / Output tabs (src/view-tabs.ts) ---------- */
+/* The app fills the screen and never scrolls as a page: the editor and the output each get the whole height,
+   one tap apart, and the output scrolls inside its own panel (which ends above the fixed Run bar). */
+.view-tabs { display: none; }
+@media (max-width: 899px) {
+  .app {
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    padding: var(--s2) var(--s3) calc(var(--dock-h, 96px) + var(--s2));
+  }
+  .masthead { grid-template-areas: "brand actions" "status status"; padding-bottom: var(--s2); }
+  .tagline { display: none; } /* an app screen, not a landing page: About explains what Pocket Run is */
+  .bench { flex: 1; min-height: 0; gap: var(--s2); }
+  .view-tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    flex: none;
+    padding: 3px;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-panel);
+    background: var(--bar);
+  }
+  .view-tab {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 44px;
+    border: 0;
+    border-radius: 8px;
+    background: none;
+    color: var(--muted);
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .view-tab[aria-selected="true"] { background: var(--sheet); color: var(--ink); box-shadow: 0 0 0 1px var(--rule); }
+  .view-tab:focus-visible { outline-offset: -2px; }
+  .tab-badge { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); }
+  .tab-badge[hidden] { display: none; }
+  .bench[data-view="code"] .io,
+  .bench[data-view="output"] .editor-panel { display: none; }
+  .editor-panel { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .editor-pane { flex: 1; height: auto; min-height: 0; }
+  .io { flex: 1; min-height: 0; gap: var(--s2); }
+  .printout { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .printout-body { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; }
+  .output { max-height: none; }
+}
+
 @media (min-width: 900px) {
   :root { --code-size: 14px; }
   .app {

@@ -1,4 +1,4 @@
-import { expect, followDeviceTheme, openApp, run, test } from "./helpers";
+import { expect, followDeviceTheme, openApp, run, showView, test } from "./helpers";
 
 // DESIGN.md §6 matrix: desktop + mobile × light + dark, plus one reduced-motion run.
 const viewports = [
@@ -25,10 +25,19 @@ test.describe("layout matrix", () => {
         await expect(page.locator("#status-dot")).toHaveAttribute("data-state", "ready", { timeout: 30_000 });
         expect(await page.evaluate(() => document.documentElement.dataset.theme)).toBe(scheme);
 
-        // Above the fold: what it is, who/why (tagline), and the primary action.
+        // Above the fold: what it is, the primary action, and (desktop) who it's for. Phones are an app screen:
+        // the tagline gives way to the Code / Output tabs, and About explains Pocket Run.
         await expect(page.getByRole("heading", { level: 1 })).toBeInViewport();
-        await expect(page.locator(".tagline")).toBeInViewport();
         await expect(page.locator("#run-btn")).toBeInViewport();
+        if (vp.width < 900) {
+          await expect(page.locator(".tagline")).toBeHidden();
+          await expect(page.getByRole("tab", { name: "Code" })).toHaveAttribute("aria-selected", "true");
+          await expect(page.locator(".editor-pane")).toBeInViewport();
+          expect(await page.evaluate(() => document.documentElement.scrollHeight <= innerHeight), "the page itself doesn't scroll").toBe(true);
+        } else {
+          await expect(page.locator(".tagline")).toBeInViewport();
+          await expect(page.locator("#view-tabs")).toBeHidden();
+        }
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 
         await page.screenshot({ path: `${dir}/home-${vp.name}-${scheme}.png`, animations: "disabled" });
@@ -73,10 +82,14 @@ test("long lines wrap instead of scrolling the editor sideways", async ({ page }
 test("touch targets are at least 44 px", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await openApp(page);
-  for (const sel of ["#open-btn", "#save-btn", "#new-btn", "#run-btn", "#filename", "#stdin-box summary"]) {
+  // Phones show Code and Output as tabs: check each control in the tab where it lives, and the tabs themselves.
+  for (const sel of ["#tab-code", "#tab-output", "#open-btn", "#save-btn", "#new-btn", "#run-btn", "#filename"]) {
     const box = await page.locator(sel).boundingBox();
     expect(box!.height, sel).toBeGreaterThanOrEqual(44);
   }
+  await showView(page, "output");
+  const summary = await page.locator("#stdin-box summary").boundingBox();
+  expect(summary!.height, "#stdin-box summary").toBeGreaterThanOrEqual(44);
 });
 
 test("the editor shows a visible focus ring", async ({ page }) => {
@@ -84,6 +97,16 @@ test("the editor shows a visible focus ring", async ({ page }) => {
   await page.locator(".cm-content").focus();
   const outline = await page.locator(".editor-panel").evaluate((el) => getComputedStyle(el).outlineStyle);
   expect(outline).toBe("solid");
+});
+
+// The positive case keeps the reduced-motion test below honest: until 2026-10-15 the animation never played at
+// all (its class went on the wrong element), so "no animation with reduced motion" passed without testing anything.
+test("a finished run's output arrives with a short animation", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await openApp(page);
+  await run(page, "main.py", 'print("hi")');
+  const anim = await page.locator(".printout-body").evaluate((el) => getComputedStyle(el).animationName);
+  expect(anim).toBe("arrive");
 });
 
 test("reduced motion disables the printout animation", async ({ page }) => {

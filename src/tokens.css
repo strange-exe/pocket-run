@@ -76,3 +76,11 @@
   --syn-comment: #7b8697;
   --syn-def: #56d0e0;
 }
+
+/* Code shows exactly the characters a student types: JetBrains Mono's ligatures (!= drawn as one symbol, -> as an
+   arrow) are off unless chosen in the Theme dialog (src/ligatures.ts; public/theme-boot.js applies the choice
+   before first paint). Many rules set fonts with the `font` shorthand, which resets this property on that element,
+   so it is set on every element here rather than inherited. */
+:root:not([data-ligatures="on"]) *,
+:root:not([data-ligatures="on"]) *::before,
+:root:not([data-ligatures="on"]) *::after { font-variant-ligatures: none; }

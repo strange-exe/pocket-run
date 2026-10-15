@@ -26,4 +26,8 @@
   var paper = colors && /^#[0-9a-f]{6}$/i.test(colors.paper) ? colors.paper : POCKET_PAPER[scheme];
   var metas = document.querySelectorAll('meta[name="theme-color"]');
   for (var i = 0; i < metas.length; i++) metas[i].setAttribute("content", paper);
+  // Joined symbols in code (ligatures such as != drawn as one shape) are opt-in: src/ligatures.ts.
+  var ligatures = null;
+  try { ligatures = localStorage.getItem("pocket-run:ligatures"); } catch (e) {}
+  if (ligatures === "on") root.dataset.ligatures = "on";
 })();

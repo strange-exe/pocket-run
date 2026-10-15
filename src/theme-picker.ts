@@ -1,4 +1,5 @@
 import { downloadFile } from "./files";
+import { ligaturesOn, setLigatures } from "./ligatures";
 import {
   allThemes, BUILT_IN, chooseTheme, chosenTheme, DEFAULT_THEME_ID, defaultTheme, deleteCustomTheme, MAX_THEME_BYTES, parseThemeFile, POCKET, readable,
   saveCustomTheme, themeTemplate, type Colors, type Theme, type Token,
@@ -81,6 +82,10 @@ export function setupThemePicker(open: HTMLButtonElement, dialog: HTMLDialogElem
     dialog.showModal();
     list.querySelector<HTMLInputElement>("input:checked")?.focus();
   });
+
+  const joined = dialog.querySelector<HTMLInputElement>("#ligatures")!;
+  joined.checked = ligaturesOn();
+  joined.addEventListener("change", () => setLigatures(joined.checked));
 
   dialog.querySelector("#theme-load")!.addEventListener("click", () => fileInput.click());
   fileInput.addEventListener("change", async () => {

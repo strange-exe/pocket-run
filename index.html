@@ -26,8 +26,13 @@
         </nav>
       </header>
 
-      <main class="bench">
-        <div class="editor-panel">
+      <main class="bench" data-view="code">
+        <!-- Phones: Code and Output as two tabs (roles are set by main.ts only while the tabs show). -->
+        <div class="view-tabs" id="view-tabs" aria-label="View">
+          <button type="button" class="view-tab" id="tab-code" aria-controls="panel-code">Code</button>
+          <button type="button" class="view-tab" id="tab-output" aria-controls="panel-output">Output<span class="tab-badge" id="tab-badge" hidden><span class="visually-hidden">, new result</span></span></button>
+        </div>
+        <div class="editor-panel" id="panel-code">
           <div class="filebar">
             <div class="file-id">
               <label class="filename">
@@ -47,7 +52,7 @@
           <section class="editor-pane" id="editor" aria-label="Code"></section>
         </div>
 
-        <section class="io">
+        <section class="io" id="panel-output">
           <details class="stdin panel" id="stdin-box">
             <summary class="panel-head">Input <span class="hint">optional, given to the program first</span></summary>
             <label class="visually-hidden" for="stdin">Program input</label>
@@ -115,6 +120,10 @@
         <h2 id="theme-title">Colour theme</h2>
         <p class="dialog-note">Saved on this device. Every theme is kept readable.</p>
         <div class="theme-list" id="theme-list" role="radiogroup" aria-labelledby="theme-title"></div>
+        <label class="ligature-option">
+          <input type="checkbox" id="ligatures" />
+          <span><span class="ligature-name">Joined symbols in code</span><span class="ligature-note">Draws != == -&gt; and similar pairs as single shapes. Off shows exactly what you type.</span></span>
+        </label>
         <div class="theme-actions">
           <button type="button" class="tool" id="theme-load"><i data-icon="upload-simple"></i><span>Load theme file</span></button>
           <button type="button" class="tool" id="theme-template"><i data-icon="download-simple"></i><span>Get template</span></button>

@@ -5,6 +5,7 @@ import { makeShareUrl, readShareHash, shareProblem } from "./share";
 import { HIDDEN, removeHidden } from "./safety";
 import { applyTheme, chosenTheme, followDevice } from "./themes";
 import { setupThemePicker } from "./theme-picker";
+import { setupViewTabs } from "./view-tabs";
 
 // The start-up script in index.html already painted the saved theme; this re-applies it with
 // full validation and keeps "match device" in step with the system setting.
@@ -14,6 +15,7 @@ import { setupSymbolBar } from "./symbol-bar";
 import { createEditor } from "./editor";
 import { downloadFile, readCodeFile, sanitizeFilename } from "./files";
 import { ACCEPTED_EXTENSIONS, detectLanguage, languageById, type Language, type LanguageId } from "./languages";
+import { cHint } from "./hints";
 import { CppRunner } from "./runner/cpp-runner";
 import { Runner, type RunOptions, type RunResult } from "./runner/runner";
 
@@ -28,7 +30,9 @@ const stdinInput = $<HTMLTextAreaElement>("stdin");
 const stdinBox = $<HTMLDetailsElement>("stdin-box");
 const receipt = $("receipt");
 const output = $("output");
-const printout = output.parentElement!;
+// The Output panel (section.printout), not the body around the output: the "arrive" animation is keyed on
+// `.printout.fresh`, and adding the class to the body (as before 2026-10-15) meant it never played.
+const printout = output.closest<HTMLElement>(".printout")!;
 const notice = $("notice");
 const runBtn = $<HTMLButtonElement>("run-btn");
 const runLabel = $("run-label");
@@ -36,6 +40,7 @@ const statusDot = $("status-dot");
 const statusText = $("status-text");
 const newDialog = $<HTMLDialogElement>("new-dialog");
 setupThemePicker($<HTMLButtonElement>("theme-btn"), $<HTMLDialogElement>("theme-dialog"));
+const views = setupViewTabs(document.querySelector<HTMLElement>(".bench")!);
 const packOffer = $("pack-offer");
 const packText = $("pack-text");
 const packProgress = $<HTMLProgressElement>("pack-progress");
@@ -44,7 +49,9 @@ const packButton = $<HTMLButtonElement>("pack-button");
 // ---------- state ----------
 const python = languageById("python");
 const savedDraft = loadDraft();
-const ownDraft = savedDraft ?? { filename: python.defaultFilename, code: python.sample, stdin: "Abhinesh\n" };
+/** The sample program's own answer to its input() prompt; it belongs to the sample only. */
+const SAMPLE_STDIN = "Abhinesh\n";
+const ownDraft = savedDraft ?? { filename: python.defaultFilename, code: python.sample, stdin: SAMPLE_STDIN };
 // A share link (#s=…) opens its file in the editor; the student's own file is kept aside.
 const received = await readShareHash(location.hash);
 if (location.hash) history.replaceState(null, "", location.pathname + location.search);
@@ -67,10 +74,24 @@ stdinInput.value = draft.stdin;
 if (draft.stdin) stdinBox.open = true;
 fileInput.accept = ACCEPTED_EXTENSIONS;
 
+// When a student replaces the sample with their own program (pasting over it is the usual way), the sample's
+// untouched "Abhinesh" answer must not go along: a C program reading a number would get a name, fail, and
+// loop on it forever. A student's own Input text is never touched.
+let codeIsSample = draft.code === python.sample;
+function onCodeChange() {
+  const code = editor.getCode();
+  if (codeIsSample && code !== python.sample && stdinInput.value === SAMPLE_STDIN) {
+    stdinInput.value = "";
+    stdinBox.open = false;
+  }
+  codeIsSample = code === python.sample;
+  persist();
+}
+
 const editor = createEditor($("editor"), {
   code: draft.code,
   language: detectLanguage(draft.filename)?.id ?? null,
-  onChange: persist,
+  onChange: onCodeChange,
   extraKeys: [{ key: "Mod-Enter", run: () => { void onRun(); return true; } }],
 });
 
@@ -364,8 +385,10 @@ async function onRun() {
     if (cpp.state === "absent" || cpp.state === "checking") {
       renderStatus();
       showNotice("Download the C/C++ compiler first (once). The button is in Output.");
-      // Bring the whole offer above the fixed Run bar, then focus without the browser's minimal scroll.
-      // The notice just made the bar taller; measure it now (ResizeObserver reports only after layout).
+      // Phones: the offer is in the Output tab. Bring the whole offer above the fixed Run bar, then focus
+      // without the browser's minimal scroll. The notice just made the bar taller; measure it now
+      // (ResizeObserver reports only after layout).
+      views.show("output");
       syncDockHeight();
       printout.scrollIntoView({ block: "start" });
       packButton.focus({ preventScroll: true });
@@ -379,6 +402,9 @@ async function onRun() {
   showNotice("");
 
   running = true;
+  // An empty Input box only takes space while the program runs (answers are typed where it asks).
+  if (!stdinInput.value) stdinBox.open = false;
+  views.show("output"); // phones: the run is watched (and answered) in the Output tab
   runBtn.toggleAttribute("data-running", true);
   runLabel.textContent = "Stop";
   output.replaceChildren();
@@ -429,6 +455,8 @@ async function onRun() {
   try {
     const result = isCompiled(lang) ? await cpp.run({ ...options, lang: lang.id }) : await runner.run(options);
     renderReceipt(result, lang.label);
+    const hint = isCompiled(lang) ? cHint(options.code, result.status) : null;
+    if (hint) showNotice(hint, { tone: "info" });
   } catch (e) {
     receipt.textContent = `couldn't run: ${(e as Error).message}`;
   } finally {
@@ -440,11 +468,8 @@ async function onRun() {
     printout.classList.remove("fresh");
     void printout.offsetWidth; // restart the arrive animation
     printout.classList.add("fresh");
-    // Phones: bring the receipt and the first lines of output to the top of the screen.
-    if (matchMedia("(max-width: 899px)").matches) {
-      const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
-      printout.scrollIntoView({ block: "start", behavior: reduce ? "auto" : "smooth" });
-    }
+    // Phones: the result is in the Output tab; if the student went back to the code meanwhile, mark the tab.
+    views.markNewOutput();
   }
 }
 
@@ -477,7 +502,8 @@ function askForInput(reply: (line: string | null) => void) {
  * box 14 px short in about half of the runs.
  */
 function keepAboveDock(el: HTMLElement) {
-  if (getComputedStyle(dock).position !== "fixed") return el.scrollIntoView({ block: "nearest" });
+  // Phones use the Code/Output tabs: the page doesn't scroll, the output does, and it ends above the Run bar.
+  if (views.active || getComputedStyle(dock).position !== "fixed") return el.scrollIntoView({ block: "nearest" });
   const gap = 12;
   const box = el.getBoundingClientRect();
   const limit = dock.getBoundingClientRect().top - gap;

@@ -1,6 +1,12 @@
 import type { Page } from "@playwright/test";
 import { expect, openApp, openFile, run, test } from "./helpers";
 
+// In about 1 in 80 WebKit installs on this machine, pressing Download left the page unchanged (no progress, no
+// error); no code path explains it yet. Keep a full trace of any failure in this file (actions, console, network),
+// so the next one comes with evidence. Nothing is kept when the tests pass. (Top level: Playwright refuses a
+// trace setting inside a describe group, because it needs a new worker.)
+test.use({ trace: "retain-on-failure" });
+
 /**
  * Installs the C/C++ pack the way a student does: open a C file, press Download. If the download stops (WebKit
  * on this machine occasionally fails a local fetch with "Load failed"; the app then offers "Try again" and keeps

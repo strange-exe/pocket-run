@@ -27,6 +27,10 @@ New here? [pocket-run.pages.dev/about/](https://pocket-run.pages.dev/about/) exp
    (with its name and Input) in anyone's Pocket Run. The file travels inside the link's `#` part, which browsers never
    send to a server, and opening a link never runs the code.
 
+On phones, **Code** and **Output** are two tabs, so the editor and the result each get the whole screen: Run
+switches to Output (where the program asks for input), and a result that arrives while you're back in the code
+marks the Output tab.
+
 Your current file is kept on the device between visits. On phones, a bar of hard-to-reach symbols
 (`{ } [ ] ( ) ; " < > \ …`, Tab and cursor keys) sits above the keyboard while you edit code.
 
@@ -35,7 +39,12 @@ One Dark Pro, Dracula, Tokyo Night Day, Catppuccin), Pocket Run's own light, dar
 **More themes** Rosé Pine, Nord, Gruvbox, Kanagawa, Everforest, Ayu, Night Owl and Solarized. You can also load your own:
 **Get template** saves the current colours as a small JSON file; change the `#rrggbb` values and load it back. Themes
 are kept on the device, and any colour too faint to read is darkened or lightened (keeping its hue) until it meets
-WCAG AA contrast.
+WCAG AA contrast. Code shows exactly the characters typed; **Joined symbols in code** in the same dialog turns on the
+font's ligatures (`!=` drawn as one symbol, `->` as an arrow) for those who like them.
+
+**Hints for classic mistakes.** After a C or C++ run, a one-line tip explains a few things every beginner meets and
+whose messages don't explain themselves: `scanf("%c")` reading the Enter left by the previous answer (so a "Y/N"
+prompt seems skipped; use `" %c"`), Turbo C's `conio.h`/`getch()`/`clrscr()`, the removed `gets()`, and `void main()`.
 
 ### Safety
 
@@ -62,7 +71,8 @@ Anything that arrives from outside is checked first:
 - Programs stop after **8 seconds** of running and after **64 KB** of output. Time spent waiting for you to type
   doesn't count. **Stop** ends a run at any time.
 - One file at a time, up to 512 KB. Standard library only (no `pip install`, no extra C libraries).
-- C/C++: programs may use up to 256 MB of memory. **C++ exceptions (`try` / `throw`) are not supported** by this
+- Memory: Python programs may use up to 512 MB (the runtime itself is included), C/C++ programs up to 256 MB.
+- C/C++: **C++ exceptions (`try` / `throw`) are not supported** by this
   toolchain, and its C++ library is libc++ 8 (C++17 language; no `<filesystem>`). `#include <bits/stdc++.h>` works.
 
 ### Browser support
@@ -99,8 +109,8 @@ main thread ─────┤
   `Atomics.wait` until the page writes the typed line into shared memory (`src/runner/input-channel.ts`). The time
   limit pauses meanwhile. C programs are linked with a tiny start-up object that makes `stdout` unbuffered, so a
   `printf("Enter n: ")` prompt is visible before `scanf` waits.
-- **Containment.** Infinite loops hit the time limit. Memory bombs raise `MemoryError` (Python) or hit the 256 MB cap
-  (C/C++). Deep recursion raises `RecursionError` or is reported as a stack overflow, bad pointers as an invalid memory
+- **Containment.** Infinite loops hit the time limit. Memory bombs hit the memory cap within a second: `MemoryError`
+  at 512 MB (Python) or the 256 MB cap (C/C++). Deep recursion raises `RecursionError` or is reported as a stack overflow, bad pointers as an invalid memory
   access, and output floods are cut at the cap. These cases are covered by the end-to-end tests.
 
 ## Development
@@ -117,7 +127,9 @@ npm run build        # typecheck + production build into dist/
 ```
 
 Before `dev` and `build`, two scripts prepare the runtimes in `public/` (git-ignored):
-`scripts/copy-pyodide.mjs` copies Pyodide from `node_modules/pyodide` into `public/pyodide/<version>/`, and
+`scripts/copy-pyodide.mjs` copies Pyodide from `node_modules/pyodide` into `public/pyodide/<version>-heap<MB>/` and caps
+Python's memory (Pyodide has no runtime option for it, so the script lowers the heap maximum compiled into its loader,
+set in `scripts/python-heap.json`, and stops the build if a Pyodide update changes that code), and
 `scripts/fetch-clang.mjs` downloads the C/C++ toolchain at a pinned commit, verifies its SHA-256 hashes, and writes the
 gzipped pack to `public/clang/<commit>/`.
 
