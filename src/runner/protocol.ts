@@ -10,7 +10,8 @@ export type ToWorker =
   | { type: "run"; code: string; stdin: string; filename: string };
 
 export type FromWorker =
-  | { type: "ready"; ms: number; source: BootSource }
+  /** `note`: why a start-up was "fresh" (no snapshot yet, or the stored one couldn't be read or loaded). */
+  | { type: "ready"; ms: number; source: BootSource; note?: string }
   | { type: "boot-failed"; error: string }
   | { type: "out"; stream: Stream; text: string }
   /** The program wants more input than the Input box had; it waits on the input channel. */

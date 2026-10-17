@@ -11,12 +11,16 @@ async function waitForSnapshot(page: Page) {
 
 test("the second start restores Python from the device's snapshot", async ({ page }) => {
   await openApp(page);
-  await expect(page.locator("#status-dot")).toHaveAttribute("data-boot", "fresh");
+  const dot = page.locator("#status-dot");
+  await expect(dot).toHaveAttribute("data-boot", "fresh");
+  await expect(dot).toHaveAttribute("data-boot-note", "no snapshot stored yet");
   await waitForSnapshot(page);
 
   await page.reload();
-  await expect(page.locator("#status-dot")).toHaveAttribute("data-state", "ready", { timeout: 30_000 });
-  await expect(page.locator("#status-dot")).toHaveAttribute("data-boot", "snapshot");
+  await expect(dot).toHaveAttribute("data-state", "ready", { timeout: 30_000 });
+  // If this start-up wasn't from the snapshot, the app says why (CI WebKit did this once, 2026-10-17).
+  await expect(dot, `boot note: ${await dot.getAttribute("data-boot-note")}`).toHaveAttribute("data-boot", "snapshot");
+  await expect(dot).toHaveAttribute("data-boot-note", "");
 
   // A restored interpreter must behave exactly like a fresh one, interrupts included.
   const r = await run(page, "main.py", "import math\nname = input()\nprint(math.factorial(5), name)", "Abhinesh\n");
@@ -38,6 +42,7 @@ test("a corrupt snapshot is discarded and Python starts normally", async ({ page
   await page.reload();
   await expect(page.locator("#status-dot")).toHaveAttribute("data-state", "ready", { timeout: 30_000 });
   await expect(page.locator("#status-dot")).toHaveAttribute("data-boot", "fresh");
+  await expect(page.locator("#status-dot")).toHaveAttribute("data-boot-note", /^snapshot rejected: /);
   expect((await run(page, "main.py", 'print("recovered")')).output).toBe("recovered\n");
   await waitForSnapshot(page); // a good snapshot replaces the bad one
 });

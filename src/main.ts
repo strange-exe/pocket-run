@@ -165,6 +165,8 @@ function renderStatus() {
   if (runner.lastBoot) {
     statusDot.dataset.boot = runner.lastBoot.source;
     statusDot.dataset.bootMs = String(Math.round(runner.lastBoot.ms));
+    // Why a start-up wasn't from the snapshot: for diagnosing slow starts (and the snapshot tests).
+    statusDot.dataset.bootNote = runner.lastBoot.note ?? "";
   }
   const lang = detectLanguage(filenameInput.value);
   if (isCompiled(lang)) renderCppStatus();

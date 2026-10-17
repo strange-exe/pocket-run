@@ -112,14 +112,18 @@ function writer(stream: Stream) {
 // private Pyodide API, which is why the package is pinned to an exact version.
 const SNAPSHOT_CACHE = "pocket-run-python-snapshot";
 
-async function readSnapshot(key: string): Promise<Uint8Array | null> {
+/** The stored snapshot, or why there is none to use. */
+async function readSnapshot(key: string): Promise<{ bytes: Uint8Array } | { note: string }> {
   try {
     const hit = await (await cacheStorage.open(SNAPSHOT_CACHE)).match(key);
-    return hit ? new Uint8Array(await hit.arrayBuffer()) : null;
-  } catch {
-    return null;
+    return hit ? { bytes: new Uint8Array(await hit.arrayBuffer()) } : { note: "no snapshot stored yet" };
+  } catch (e) {
+    return { note: `snapshot unreadable: ${describe(e)}` };
   }
 }
+
+/** A short, single-line description of an error, for the boot note. */
+const describe = (e: unknown) => (e instanceof Error ? `${e.name}: ${e.message}` : String(e)).split("\n")[0].slice(0, 200);
 
 async function saveSnapshot(key: string, snapshot: Uint8Array) {
   try {
@@ -133,6 +137,7 @@ async function saveSnapshot(key: string, snapshot: Uint8Array) {
 
 let booting: Promise<PyodideAPI> | undefined;
 let bootSource: BootSource = "fresh";
+let bootNote: string | undefined;
 
 async function boot(interrupt: SharedArrayBuffer | null): Promise<PyodideAPI> {
   // Load the loader from our own origin so it always matches the precached runtime files.
@@ -144,13 +149,17 @@ async function boot(interrupt: SharedArrayBuffer | null): Promise<PyodideAPI> {
 
   let py: PyodideAPI | null = null;
   const snapshot = await readSnapshot(key);
-  if (snapshot) {
+  if ("bytes" in snapshot) {
     try {
-      py = await loadPyodide({ indexURL, _loadSnapshot: snapshot });
+      py = await loadPyodide({ indexURL, _loadSnapshot: snapshot.bytes });
       bootSource = "snapshot";
-    } catch {
+      bootNote = undefined;
+    } catch (e) {
+      bootNote = `snapshot rejected: ${describe(e)}`;
       await cacheStorage.delete(SNAPSHOT_CACHE).catch(() => {}); // corrupt or incompatible: start fresh
     }
+  } else {
+    bootNote = snapshot.note;
   }
   if (!py) {
     py = await loadPyodide({ indexURL, _makeSnapshot: true });
@@ -183,7 +192,7 @@ self.onmessage = async ({ data }: MessageEvent<ToWorker>) => {
     booting = boot(data.interrupt);
     try {
       await booting;
-      post({ type: "ready", ms: performance.now() - t0, source: bootSource });
+      post({ type: "ready", ms: performance.now() - t0, source: bootSource, note: bootNote });
     } catch (e) {
       post({ type: "boot-failed", error: String(e) });
     }

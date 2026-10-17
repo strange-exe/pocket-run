@@ -86,7 +86,7 @@ export class Runner {
   state: RunnerState = "booting";
   bootError = "";
   /** How the current runtime started, and how long it took (for diagnostics and tests). */
-  lastBoot: { source: BootSource; ms: number } | null = null;
+  lastBoot: { source: BootSource; ms: number; note?: string } | null = null;
   onState?: (state: RunnerState) => void;
 
   private worker!: Worker;
@@ -153,7 +153,7 @@ export class Runner {
         if (data.type !== "ready" && data.type !== "boot-failed") return;
         if (data.type === "boot-failed") return fail(data.error);
         detach();
-        this.lastBoot = { source: data.source, ms: data.ms };
+        this.lastBoot = { source: data.source, ms: data.ms, note: data.note };
         resolve();
       };
       worker.addEventListener("message", onMessage);
