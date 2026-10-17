@@ -245,7 +245,9 @@ async function compile(lang: CLang, code: string) {
     "-lc", "-lc++", "-lc++abi",
     // compiler-rt: 128-bit long double helpers (__lttf2 …) that libc++ needs.
     "lib/clang/8.0.1/lib/wasi/libclang_rt.builtins-wasm32.a", "-o", "main.wasm");
-  if (!linked) return { ok: false, diagnostics: explain(cleanDiagnostics(diagnostics)) };
+  // Keep the compile warnings: they often explain the link error ("implicit declaration of
+  // function 'gets'" is why "undefined symbol: gets" happens).
+  if (!linked) return { ok: false, diagnostics: explain([warnings, cleanDiagnostics(diagnostics)].filter(Boolean).join("\n\n")) };
 
   const wasm = api!.memfs.getFileContents("main.wasm").slice(); // copy out of memfs memory
   return { ok: true, wasm, diagnostics: warnings };

@@ -117,6 +117,34 @@ test.describe("C and C++", () => {
     expect(r.output).not.toContain("process exited"); // the toolchain's own noise is removed
   });
 
+  test.describe("text that isn't plain English", () => {
+    test("a C string literal prints unchanged", async ({ page }) => {
+      const r = await run(page, "main.c", '#include <stdio.h>\nint main(void) { printf("héllo € ✓ नमस्ते\\n"); return 0; }');
+      expect(r.status, r.output).toBe("ok");
+      expect(r.output).toBe("héllo € ✓ नमस्ते\n");
+    });
+
+    test("a C++ string literal prints unchanged", async ({ page }) => {
+      const r = await run(page, "main.cpp", '#include <iostream>\nint main() { std::cout << "naïve café ✓" << "\\n"; }');
+      expect(r.status, r.output).toBe("ok");
+      expect(r.output).toBe("naïve café ✓\n");
+    });
+
+    test("a compile error quoting non-ASCII text is readable", async ({ page }) => {
+      const r = await run(page, "main.c", "int main(void) {\n  return café;\n}");
+      expect(r.status).toBe("compile-error");
+      expect(r.output).toContain("use of undeclared identifier 'café'");
+    });
+  });
+
+  test("compile warnings are kept when linking fails", async ({ page }) => {
+    // The warning explains the link error: gets() was removed from C, so there is nothing to link.
+    const r = await run(page, "main.c", "#include <stdio.h>\nint main(void) { char line[16]; gets(line); return 0; }");
+    expect(r.status).toBe("compile-error");
+    expect(r.output).toContain("implicit declaration of function 'gets'");
+    expect(r.output).toContain("undefined symbol: gets");
+  });
+
   test("C++ exceptions explain the limitation", async ({ page }) => {
     const r = await run(page, "main.cpp", '#include <stdexcept>\nint main() { try { throw std::runtime_error("x"); } catch (...) {} }');
     expect(r.status).toBe("compile-error");

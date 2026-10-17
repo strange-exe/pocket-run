@@ -28,6 +28,10 @@ function readStr(u8, o, len = -1) {
   return str;
 }
 
+// Every string that goes into wasm memory (paths, sources, arguments, stdin) is written as UTF-8,
+// because the tools read bytes. (readStr above stays for the ASCII-only tar headers and logs.)
+const utf8 = new TextEncoder();
+
 function debounceLazy(f, ms) {
   let waiting = 0;
   let running = false;
@@ -125,18 +129,19 @@ class Memory {
     return readStr(this.u8, o, len);
   }
 
-  // Null-terminated string.
+  // Null-terminated string; returns the bytes written, terminator included.
   writeStr(o, str) {
-    o += this.write(o, str);
+    const bytes = utf8.encode(str);
+    o += this.write(o, bytes);
     this.write8(o, 0);
-    return str.length + 1;
+    return bytes.length + 1;
   }
 
   write(o, buf) {
     if (buf instanceof ArrayBuffer) {
       return this.write(o, new Uint8Array(buf));
     } else if (typeof buf === 'string') {
-      return this.write(o, buf.split('').map(x => x.charCodeAt(0)));
+      return this.write(o, utf8.encode(buf));
     } else {
       const dst = new Uint8Array(this.buffer, o, buf.length);
       dst.set(buf);
@@ -149,8 +154,10 @@ class MemFS {
   constructor(options) {
     const compileStreaming = options.compileStreaming;
     this.hostWrite = options.hostWrite;
-    this.stdinStr = options.stdinStr || "";
+    this.stdinBytes = utf8.encode(options.stdinStr || "");
     this.stdinStrPos = 0;
+    // One streaming decoder per output stream, so a character split across two writes survives.
+    this.decoders = {};
     this.memfsFilename = options.memfsFilename;
 
     this.hostMem_ = null;  // Set later when wired up to application.
@@ -174,31 +181,34 @@ class MemFS {
   }
 
   setStdinStr(str) {
-    this.stdinStr = str;
+    this.stdinBytes = utf8.encode(str);
     this.stdinStrPos = 0;
   }
 
-  addDirectory(path) {
+  // Writes `path` into the path buffer and returns its length in bytes, as memfs expects.
+  writePath(path) {
+    const bytes = utf8.encode(path);
     this.mem.check();
-    this.mem.write(this.exports.GetPathBuf(), path);
-    this.exports.AddDirectoryNode(path.length);
+    this.mem.write(this.exports.GetPathBuf(), bytes);
+    return bytes.length;
+  }
+
+  addDirectory(path) {
+    this.exports.AddDirectoryNode(this.writePath(path));
   }
 
   addFile(path, contents) {
+    if (typeof contents === 'string') contents = utf8.encode(contents);
     const length =
         contents instanceof ArrayBuffer ? contents.byteLength : contents.length;
-    this.mem.check();
-    this.mem.write(this.exports.GetPathBuf(), path);
-    const inode = this.exports.AddFileNode(path.length, length);
+    const inode = this.exports.AddFileNode(this.writePath(path), length);
     const addr = this.exports.GetFileNodeAddress(inode);
     this.mem.check();
     this.mem.write(addr, contents);
   }
 
   getFileContents(path) {
-    this.mem.check();
-    this.mem.write(this.exports.GetPathBuf(), path);
-    const inode = this.exports.FindNode(path.length);
+    const inode = this.exports.FindNode(this.writePath(path));
     const addr = this.exports.GetFileNodeAddress(inode);
     const size = this.exports.GetFileNodeSize(inode);
     return new Uint8Array(this.mem.buffer, addr, size);
@@ -209,6 +219,7 @@ class MemFS {
   host_write(fd, iovs, iovs_len, nwritten_out) {
     this.hostMem_.check();
     assert(fd <= 2);
+    const decoder = this.decoders[fd] || (this.decoders[fd] = new TextDecoder());
     let size = 0;
     let str = '';
     for (let i = 0; i < iovs_len; ++i) {
@@ -216,7 +227,7 @@ class MemFS {
       iovs += 4;
       const len = this.hostMem_.read32(iovs);
       iovs += 4;
-      str += this.hostMem_.readStr(buf, len);
+      str += decoder.decode(new Uint8Array(this.hostMem_.buffer, buf, len), { stream: true });
       size += len;
     }
     this.hostMem_.write32(nwritten_out, size);
@@ -233,11 +244,11 @@ class MemFS {
       iovs += 4;
       const len = this.hostMem_.read32(iovs);
       iovs += 4;
-      const lenToWrite = Math.min(len, (this.stdinStr.length - this.stdinStrPos));
+      const lenToWrite = Math.min(len, (this.stdinBytes.length - this.stdinStrPos));
       if(lenToWrite === 0){
         break;
       }
-      this.hostMem_.write(buf, this.stdinStr.substr(this.stdinStrPos, lenToWrite));
+      this.hostMem_.write(buf, this.stdinBytes.subarray(this.stdinStrPos, this.stdinStrPos + lenToWrite));
       size += lenToWrite;
       this.stdinStrPos += lenToWrite;
       if(lenToWrite !== len){
@@ -395,8 +406,8 @@ class App {
     const names = Object.getOwnPropertyNames(this.environ);
     for (const name of names) {
       const value = this.environ[name];
-      // +2 to account for = and \0 in "name=value\0".
-      size += name.length + value.length + 2;
+      // +2 to account for = and \0 in "name=value\0". Lengths in UTF-8 bytes, as writeStr writes them.
+      size += utf8.encode(name).length + utf8.encode(value).length + 2;
     }
     this.mem.write64(environ_count_out, names.length);
     this.mem.write64(environ_buf_size_out, size);
@@ -420,7 +431,7 @@ class App {
     this.mem.check();
     let size = 0;
     for (let arg of this.argv) {
-      size += arg.length + 1;  // "arg\0".
+      size += utf8.encode(arg).length + 1;  // "arg\0", in UTF-8 bytes.
     }
     this.mem.write64(argc_out, this.argv.length);
     this.mem.write64(argv_buf_size_out, size);
@@ -814,6 +825,9 @@ return API;
 
 })();
 
-// Pocket Run modification (Apache-2.0 section 4(b)): vendored from binji/wasm-clang@648c4a8
-// and turned into an ES module by adding the export below. No other changes.
+// Pocket Run modifications (Apache-2.0 section 4(b)): vendored from binji/wasm-clang@648c4a8,
+// turned into an ES module by adding the export below, and made UTF-8 clean: strings written
+// into wasm memory (Memory.write/writeStr, memfs paths and file contents, stdin, argument and
+// environment sizes) are UTF-8 bytes with byte lengths, and tool output (host_write) is decoded
+// as streaming UTF-8 instead of one Latin-1 character per byte. (2026-10-17)
 export default API;
