@@ -13,32 +13,57 @@ const cacheStorage = self.caches;
 
 // Runs user code in a fresh namespace and formats errors the way CPython does,
 // minus our own wrapper frame. Returns (exit_code, interrupted, recycle).
+// Every run shares this interpreter's sys, os and signal modules, so whatever a program changes
+// there (sys.stdout = io.StringIO(), the recursion limit, os.environ, a Ctrl+C handler) is put
+// back before the next run. Its own streams are restored before an error is reported, so the
+// traceback can't vanish into a replaced sys.stderr. If it closed the real stdout or stderr,
+// only a new interpreter gets them back: recycle.
 const RUNNER_PY = `
-import sys, traceback
+import os, signal, sys, traceback
+
+def __pocket_run_restore(saved):
+    streams, limit, environ = saved
+    sys.stdin, sys.stdout, sys.stderr = streams
+    sys.setrecursionlimit(limit)
+    if dict(os.environ) != environ:
+        os.environ.clear()
+        os.environ.update(environ)
+    signal.signal(signal.SIGINT, signal.default_int_handler)
 
 def __pocket_run(code, filename):
+    saved = ((sys.stdin, sys.stdout, sys.stderr), sys.getrecursionlimit(), dict(os.environ))
+    signal.signal(signal.SIGINT, signal.default_int_handler)
     namespace = {"__name__": "__main__", "__file__": filename}
+    exit_code, interrupted, out_of_memory = 0, False, False
     try:
         exec(compile(code, filename, "exec"), namespace)
-        return (0, False, False)
     except SystemExit as e:
+        __pocket_run_restore(saved)
         if e.code is None:
-            return (0, False, False)
-        if isinstance(e.code, int):
-            return (e.code, False, False)
-        print(e.code, file=sys.stderr)
-        return (1, False, False)
+            exit_code = 0
+        elif isinstance(e.code, int):
+            exit_code = e.code
+        else:
+            print(e.code, file=sys.stderr)
+            exit_code = 1
     except KeyboardInterrupt:
-        return (130, True, False)
+        exit_code, interrupted = 130, True
     except BaseException as e:
+        __pocket_run_restore(saved)
+        exit_code, out_of_memory = 1, isinstance(e, MemoryError)
         try:
             traceback.print_exception(type(e), e, e.__traceback__.tb_next)
         except KeyboardInterrupt:  # Stop pressed while the error was being reported
-            return (130, True, False)
-        return (1, False, isinstance(e, MemoryError))
+            exit_code, interrupted = 130, True
     finally:
-        sys.stdout.flush()
-        sys.stderr.flush()
+        __pocket_run_restore(saved)
+        for stream in (sys.stdout, sys.stderr):
+            try:
+                stream.flush()
+            except Exception:
+                pass
+    closed = any(getattr(stream, "closed", False) for stream in saved[0])
+    return (exit_code, interrupted, out_of_memory or closed)
 `;
 
 // Output is posted as it is written, up to POSTS_PER_WINDOW messages per WINDOW_MS; beyond
@@ -203,7 +228,9 @@ self.onmessage = async ({ data }: MessageEvent<ToWorker>) => {
     [exitCode, interrupted, recycle] = result.toJs() as [number, boolean, boolean];
     result.destroy();
   } catch {
-    // Only a KeyboardInterrupt landing in the wrapper's own last steps can get here.
+    // Only a KeyboardInterrupt landing in the wrapper's own last steps can get here. Its clean-up
+    // may not have finished, so start the next run from a new interpreter.
+    recycle = true;
   } finally {
     run.destroy();
   }

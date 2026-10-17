@@ -51,6 +51,49 @@ test("each run starts with fresh variables", async ({ page }) => {
   expect(r.output).toBe("False\n");
 });
 
+test.describe("a program can't change the interpreter for the next run", () => {
+  test("replacing sys.stdout doesn't silence the next run", async ({ page }) => {
+    const first = await run(page, "main.py", "import sys, io\nsys.stdout = io.StringIO()\nprint('hidden')");
+    expect(first.status).toBe("ok");
+    expect(first.output).toBe("");
+    const next = await run(page, "main.py", "print('visible')");
+    expect(next.status).toBe("ok");
+    expect(next.output).toBe("visible\n");
+  });
+
+  test("replacing sys.stderr and sys.stdin doesn't break the next run", async ({ page }) => {
+    await run(page, "main.py", "import sys, io\nsys.stderr = io.StringIO()\nsys.stdin = io.StringIO('fake')");
+    const next = await run(page, "main.py", "name = input()\nprint(name)\nraise ValueError('shown')", "real\n");
+    expect(next.output).toContain("real\n");
+    expect(next.output).toContain("ValueError: shown");
+  });
+
+  test("closing stdout doesn't break the next run", async ({ page }) => {
+    await run(page, "main.py", "import sys\nsys.stdout.close()");
+    const next = await run(page, "main.py", "print('back')");
+    expect(next.status).toBe("ok");
+    expect(next.output).toBe("back\n");
+  });
+
+  test("the recursion limit, environment and Ctrl+C handler are put back", async ({ page }) => {
+    await run(page, "main.py", [
+      "import sys, os, signal",
+      "sys.setrecursionlimit(60)",
+      "os.environ['LEFTOVER'] = '1'",
+      "signal.signal(signal.SIGINT, signal.SIG_IGN)",
+    ].join("\n"));
+    const next = await run(page, "main.py", [
+      "import sys, os, signal",
+      "def depth(n): return 0 if n == 0 else 1 + depth(n - 1)",
+      "print(depth(200))",
+      "print('LEFTOVER' in os.environ)",
+      "print(signal.getsignal(signal.SIGINT) is signal.default_int_handler)",
+    ].join("\n"));
+    expect(next.status, next.output).toBe("ok");
+    expect(next.output).toBe("200\nFalse\nTrue\n");
+  });
+});
+
 test.describe("hostile programs are contained", () => {
   test("infinite loop is interrupted at the time limit", async ({ page }) => {
     const r = await run(page, "main.py", "print('start')\nwhile True:\n    pass");
